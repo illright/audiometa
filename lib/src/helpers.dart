@@ -47,3 +47,17 @@ Uint8List getViewRegion(Uint8List view, {int start = 0, int end, int length}) {
 
   return Uint8List.view(view.buffer, view.offsetInBytes + start, length);
 }
+
+
+Uint8List removeUnsync(Uint8List data) {
+  var result = Uint8List(data.lengthInBytes);
+  int lastByte;
+  int cursor = 0;
+  for (int byte in data) {
+    if (lastByte != 0xFF || byte != 0x00) {
+      result[cursor++] = byte;
+    }
+    lastByte = byte;
+  }
+  return result;
+}

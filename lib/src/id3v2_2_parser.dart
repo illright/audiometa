@@ -103,26 +103,29 @@ class ID3v2_2Parser {
 
     // Frames
     int cursor = start + 10;
-    var frames = List<ID3Frame>();
+    var frames = Map<String, List<ID3Frame>>();
     while (cursor < start + 10 + tagSize) {
       var frameLabel = String.fromCharCodes(data.getRange(cursor, cursor + 3));
       if (frameLabel == '\x00\x00\x00') {
         break;  // Hit padding bytes
       }
       int frameSize = readInt(data.getRange(cursor + 3, cursor + 6));
-      frames.add(
-        frameByID[frameLabel](
-          frameLabel,
-          Uint8List.view(data.buffer, cursor + 6, frameSize),
-        )
+      var frameData = Uint8List.view(data.buffer, cursor + 6, frameSize);
+      var frame = frameByID[frameLabel](
+        frameLabel,
+        unsync ? removeUnsync(frameData) : frameData,
       );
+      if (frames.containsKey(frameLabel)) {
+        frames[frameLabel].add(frame);
+      } else {
+        frames[frameLabel] = [frame];
+      }
       cursor += 6 + frameSize;
     }
 
     return ID3Tag(
       version: ID3.v2_2,
       frames: frames,
-      unsync: unsync,
     );
   }
 }
