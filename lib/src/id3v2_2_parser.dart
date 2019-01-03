@@ -93,7 +93,7 @@ class ID3v2_2Parser {
 
     // Flag bits
     if (!(
-      data[start + 5] & 0x7F == 0  // 0x7F == 0b1111111
+      data[start + 5] & 0x7F == 0  // 0x7F == 0b01111111
     ))
       throw BadTagException('Expected only bit 7 to be set for flags');
 
