@@ -30,7 +30,7 @@ abstract class ID3Frame {
 ID3Tag extractTag(Uint8List data, ID3 tagVersion) {
   if (tagVersion == ID3.v2_2) {
     try {
-      return ID3v2_2Parser.parseForwardFrom(data, start: 0);
+      return ID3v2_2Parser.parseForward(data);
     } on BadTagException {
       return null;
     }

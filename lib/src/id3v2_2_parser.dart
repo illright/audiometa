@@ -74,7 +74,7 @@ final frameByID = <String, ID3Frame Function(String, Uint8List)>{
 
 
 class ID3v2_2Parser {
-  static ID3Tag parseForwardFrom(Uint8List data, {int start}) {
+  static ID3Tag parseForward(Uint8List data, {int start = 0}) {
     // Informal spec here: http://id3.org/id3v2-00
     // The "ID3" identifier
     if (!(
