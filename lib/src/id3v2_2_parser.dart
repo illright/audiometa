@@ -97,7 +97,7 @@ class ID3v2_2Parser {
     ))
       throw BadTagException('Expected only bit 7 to be set for flags');
 
-    bool unsync = data[start + 5] & 0x80 == 1;  // 0x80 == 0b10000000
+    bool unsync = data[start + 5] & 0x80 != 0;  // 0x80 == 0b10000000
     // Tag size
     int tagSize = readInt(data.getRange(start + 6, start + 10), synchSafe: true);
 
@@ -125,6 +125,7 @@ class ID3v2_2Parser {
 
     return ID3Tag(
       version: ID3.v2_2,
+      flags: data[start + 5],
       frames: frames,
     );
   }
