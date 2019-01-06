@@ -17,7 +17,8 @@ int readInt(Iterable<int> data, {bool synchSafe = false}) {
 /// Get a region of a Uint8List view, [start] inclusive, [end] exclusive.
 ///
 /// Either [end] or [length] should be specified, failure to do so will result in
-/// an [ArgumentError].
+/// an [ArgumentError]. If the specified region exceeds the boundaries of the view, a [RangeError]
+/// is thrown.
 ///
 /// Example usage:
 /// ```dart
@@ -41,7 +42,7 @@ Uint8List getViewRegion(Uint8List view, {int start = 0, int end, int length}) {
     length = view.lengthInBytes - start;
   }
 
-  if (length > view.lengthInBytes - start) {
+  if (length > view.lengthInBytes - start || start < 0) {
     throw RangeError('The specified region is out of the view\'s boundaries.');
   }
 
