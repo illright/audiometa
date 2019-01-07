@@ -1,30 +1,8 @@
 import 'dart:typed_data';
-import 'dart:convert';
-
-import 'package:utf/utf.dart';
 
 import 'tag_types.dart';
 import 'exceptions.dart';
 import 'helpers.dart';
-
-
-/// Decodes binary [data] with the encoding that's specified in the [encodingByte].
-///
-/// According to the ID3v2.2 spec, here's the mapping of values to encodings:
-/// encodingByte = 0 => ISO-8859-1 is used
-/// encodingByte = 1 => UTF-16 is used
-String decodeByEncodingByte(Uint8List data, int encodingByte) {
-  switch (encodingByte) {
-    case 0x0:
-      return latin1.decode(data);
-      break;
-    case 0x1:
-      return decodeUtf16(data);
-      break;
-    default:
-      throw BadTagDataException('Expected encoding byte to be 0 or 1, $encodingByte found.');
-  }
-}
 
 
 /// UFI: Unique file identifier.
