@@ -3,7 +3,7 @@ import 'dart:typed_data';
 import 'tag_types.dart';
 import 'exceptions.dart';
 import 'helpers.dart';
-import 'id3v2_2_frames.dart';
+import 'id3v22_frames.dart';
 
 
 final frameByID = <String, ID3Frame Function(String, Uint8List)>{
@@ -73,7 +73,7 @@ final frameByID = <String, ID3Frame Function(String, Uint8List)>{
 };
 
 
-class ID3v2_2Parser {
+class ID3v22Parser {
   static ID3Tag parseForward(Uint8List data, {int start = 0}) {
     // Informal spec here: http://id3.org/id3v2-00
     // The "ID3" identifier
