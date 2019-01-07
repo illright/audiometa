@@ -135,27 +135,27 @@ class IPL extends ID3Frame {
   Map<String, String> involvement;
   int encoding;
 
-  factory IPL.parse(String label, Uint8List data) {
-    Map<String, String> involvement;
-    int encodingByte = data[0];
+  IPL.parse(String label, Uint8List data) : super('IPL') {
+    encoding = data[0];
 
     int cursor = 1;
     int closestZero, secondClosestZero;
+    involvement = Map<String, String>();
+
     while (cursor < data.length) {
       closestZero = data.indexOf(0, cursor);
       secondClosestZero = data.indexOf(0, closestZero + 1);
       var key = decodeByEncodingByte(
         getViewRegion(data, start: cursor, end: closestZero),
-        encodingByte
+        encoding
       );
       var value = decodeByEncodingByte(
         getViewRegion(data, start: closestZero + 1, end: secondClosestZero),
-        encodingByte
+        encoding
       );
       involvement[key] = value;
       cursor = secondClosestZero + 1;
     }
-    return IPL(involvement, encoding: encodingByte);
   }
 
   IPL(this.involvement, {this.encoding}) : super('IPL');
@@ -199,20 +199,12 @@ class MLL extends BinaryFrame {
   int bitsForByteDev;
   int bitsForMsDev;
 
-  factory MLL.parse(String label, Uint8List data) {
-    final framesBetweenRef = readInt(data.getRange(0, 2));
-    final bytesBetweenRef = readInt(data.getRange(2, 5));
-    final msBetweenRef = readInt(data.getRange(5, 8));
-    final bitsForByteDev = data[8];
-    final bitsForMsDev = data[9];
-    return MLL(
-      framesBetweenRef,
-      bytesBetweenRef,
-      msBetweenRef,
-      bitsForByteDev,
-      bitsForMsDev,
-      getViewRegion(data, start: 10),
-    );
+  MLL.parse(String label, Uint8List data) : super('MLL', getViewRegion(data, start: 10)) {
+    framesBetweenRef = readInt(data.getRange(0, 2));
+    bytesBetweenRef = readInt(data.getRange(2, 5));
+    msBetweenRef = readInt(data.getRange(5, 8));
+    bitsForByteDev = data[8];
+    bitsForMsDev = data[9];
   }
 
   MLL(this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
@@ -260,24 +252,16 @@ class SLT extends ID3Frame {
   String descriptor;
   Uint8List data;
 
-  factory SLT.parse(String label, Uint8List data) {
-    int encodingByte = data[0];
-    String language = String.fromCharCodes(data.getRange(1, 4));
-    int timestampType = data[4];
-    int contentType = data[5];
+  SLT.parse(String label, Uint8List data) : super('SLT') {
+    encoding = data[0];
+    language = String.fromCharCodes(data.getRange(1, 4));
+    timestampType = data[4];
+    contentType = data[5];
     int nullSeparator = data.indexOf(0, 6);
 
     final rawDescriptor = getViewRegion(data, start: 6, end: nullSeparator);
-    final rawLyrics = getViewRegion(data, start: nullSeparator + 1);
-
-    return SLT(
-      language,
-      timestampType,
-      contentType,
-      decodeByEncodingByte(rawDescriptor, encodingByte),
-      rawLyrics,
-      encoding: encodingByte,
-    );
+    descriptor = decodeByEncodingByte(rawDescriptor, encoding);
+    data = getViewRegion(data, start: nullSeparator + 1);
   }
 
   SLT(this.language, this.timestampType, this.contentType, this.descriptor,
@@ -294,24 +278,22 @@ class RVA extends ID3Frame {
   int peakLeft;
   int peakRight;
 
-  factory RVA.parse(String label, Uint8List data) {
-    final incrementFlags = data[0];
+  RVA.parse(String label, Uint8List data) : super('RVA') {
+    incrementFlags = data[0];
     if (incrementFlags & 0xFC != 0) {
       throw BadTagDataException('Unknown flags set for increment/decrement.');
     }
-    final bitsForVolume = data[1];
+    bitsForVolume = data[1];
 
     final volumeFieldSize = (bitsForVolume / 8).ceil() * 8;
     int offset = 2;
-    final relChangeLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
+    relChangeLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
     offset += volumeFieldSize;
-    final relChangeRight = readInt(data.getRange(offset, offset + volumeFieldSize));
+    relChangeRight = readInt(data.getRange(offset, offset + volumeFieldSize));
     offset += volumeFieldSize;
-    final peakLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
+    peakLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
     offset += volumeFieldSize;
-    final peakRight = readInt(data.getRange(offset, offset + volumeFieldSize));
-
-    return RVA(incrementFlags, bitsForVolume, relChangeLeft, relChangeRight, peakLeft, peakRight);
+    peakRight = readInt(data.getRange(offset, offset + volumeFieldSize));
   }
 
   RVA(this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
@@ -458,18 +440,16 @@ class POP extends ID3Frame {
   int rating;
   int playCount;
 
-  factory POP.parse(String label, Uint8List data) {
+  POP.parse(String label, Uint8List data) : super('POP') {
     int nullSeparator = data.indexOf(0);
-    final email = String.fromCharCodes(data.getRange(0, nullSeparator));
-    int rating = data[nullSeparator + 1];
-    int playCount;
+    email = String.fromCharCodes(data.getRange(0, nullSeparator));
+    rating = data[nullSeparator + 1];
+
     if (nullSeparator + 2 != data.length) {
       playCount = readInt(data.getRange(nullSeparator + 2, data.length));
     } else {
       playCount = null;
     }
-
-    return POP(email, rating, playCount);
   }
 
   POP(this.email, this.rating, this.playCount) : super('POP');
@@ -482,20 +462,18 @@ class BUF extends ID3Frame {
   bool embeddedInfo;
   int offsetToNextTag;
 
-  factory BUF.parse(String label, Uint8List data) {
-    int bufferSize = readInt(data.getRange(0, 3));
+  BUF.parse(String label, Uint8List data) : super('BUF') {
+    bufferSize = readInt(data.getRange(0, 3));
     if (data[3] & 0xFE != 0) {
       throw BadTagDataException('Unknown flags set in the embedded info byte.');
     }
-    bool embeddedInfo = data[3] == 1;
-    int offset;
-    if (data.length != 4) {
-      offset = readInt(data.getRange(4, data.length));
-    } else {
-      offset = null;
-    }
+    embeddedInfo = data[3] == 1;
 
-    return BUF(bufferSize, embeddedInfo, offset);
+    if (data.length != 4) {
+      offsetToNextTag = readInt(data.getRange(4, data.length));
+    } else {
+      offsetToNextTag = null;
+    }
   }
 
   BUF(this.bufferSize, this.embeddedInfo, this.offsetToNextTag) : super('BUF');
@@ -532,18 +510,16 @@ class CRA extends ID3Frame {
   int previewLength;
   Uint8List encryptionInfo;
 
-  factory CRA.parse(String label, Uint8List data) {
+  CRA.parse(String label, Uint8List data) : super('CRA') {
     if (data[0] == 0) {
       throw BadTagDataException('First byte is null in CRA frame.');
     }
     int afterOwner = data.indexOf(0);
-    int previewStart = readInt(data.getRange(afterOwner + 1, afterOwner + 3));
-    int previewLength = readInt(data.getRange(afterOwner + 3, afterOwner + 5));
+    previewStart = readInt(data.getRange(afterOwner + 1, afterOwner + 3));
+    previewLength = readInt(data.getRange(afterOwner + 3, afterOwner + 5));
 
-    final owner = String.fromCharCodes(data.getRange(0, afterOwner));
-    final encryptionInfo = getViewRegion(data, start: afterOwner + 5);
-
-    return CRA(owner, previewStart, previewLength, encryptionInfo);
+    owner = String.fromCharCodes(data.getRange(0, afterOwner));
+    encryptionInfo = getViewRegion(data, start: afterOwner + 5);
   }
 
   CRA(this.owner, this.previewStart, this.previewLength, this.encryptionInfo) : super('CRA');
@@ -556,13 +532,11 @@ class LNK extends ID3Frame {
   String url;
   String idData;
 
-  factory LNK.parse(String label, Uint8List data) {
-    final linkedFrame = String.fromCharCodes(data.getRange(0, 3));
+  LNK.parse(String label, Uint8List data) : super('LNK') {
+    linkedFrame = String.fromCharCodes(data.getRange(0, 3));
     int afterUrl = data.indexOf(0, 3);
-    final url = String.fromCharCodes(data.getRange(3, afterUrl));
-    final idData = String.fromCharCodes(data.getRange(afterUrl + 1, data.length));
-
-    return LNK(linkedFrame, url, idData);
+    url = String.fromCharCodes(data.getRange(3, afterUrl));
+    idData = String.fromCharCodes(data.getRange(afterUrl + 1, data.length));
   }
 
   LNK(this.linkedFrame, this.url, this.idData) : super('LNK');
