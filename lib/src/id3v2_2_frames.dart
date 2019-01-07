@@ -4,13 +4,15 @@ import 'tag_types.dart';
 import 'exceptions.dart';
 import 'helpers.dart';
 
+const iso_8859_1 = 1;
+
 
 /// UFI: Unique file identifier.
 class UFI extends ID3Frame {
   String owner;
   Uint8List identifier;
 
-  UFI(String label, Uint8List data) : super(label, data) {
+  UFI.parse(String label, Uint8List data) : super(label) {
     if (data[0] == 0) {
       throw BadTagDataException('First byte is null in UFI frame.');
     }
@@ -18,6 +20,8 @@ class UFI extends ID3Frame {
     owner = String.fromCharCodes(data.getRange(0, nullSeparator));
     identifier = getViewRegion(data, start: nullSeparator + 1);
   }
+
+  UFI(this.owner, this.identifier) : super('UFI');
 }
 
 
@@ -26,8 +30,9 @@ class UFI extends ID3Frame {
 /// This class is abstract so it does not refer to any actual frames.
 abstract class PlainTextFrame extends ID3Frame {
   String text;
+  int encoding;
 
-  PlainTextFrame(this.text, String label, Uint8List data) : super(label, data);
+  PlainTextFrame(String label, this.text, {this.encoding = iso_8859_1}) : super(label);
 }
 
 
@@ -70,12 +75,14 @@ abstract class PlainTextFrame extends ID3Frame {
 /// - TOL: Original Lyricist(s)/text writer(s)
 /// - TOR: Original release year
 class TextFrame extends PlainTextFrame {
-  TextFrame(String label, Uint8List data)
+  TextFrame.parse(String label, Uint8List data)
       : super(
-          decodeByEncodingByte(getViewRegion(data, start: 1), data[0]),
           label,
-          data
+          decodeByEncodingByte(getViewRegion(data, start: 1), data[0]),
+          encoding: data[0],
         );
+
+  TextFrame(String label, String text, {int encoding}) : super(label, text, encoding: encoding);
 }
 
 
@@ -87,23 +94,23 @@ class TextFrame extends PlainTextFrame {
 class UserDefinedFrame extends PlainTextFrame {
   String description;
 
-  factory UserDefinedFrame(String label, Uint8List data) {
+  factory UserDefinedFrame.parse(String label, Uint8List data) {
     int encodingByte = data[0];
     int nullSeparator = data.indexOf(0, 1);
 
     Uint8List rawDescription = getViewRegion(data, start: 1, end: nullSeparator);
     Uint8List rawText = getViewRegion(data, start: nullSeparator + 1);
 
-    return UserDefinedFrame._(
+    return UserDefinedFrame(
+      label,
       decodeByEncodingByte(rawDescription, encodingByte),
       decodeByEncodingByte(rawText, encodingByte),
-      label,
-      data
+      encoding: encodingByte,
     );
   }
 
-  UserDefinedFrame._(this.description, String text, String label, Uint8List data)
-      : super(text, label, data);
+  UserDefinedFrame(String label, this.description, String text, {int encoding})
+      : super(text, label, encoding: encoding);
 }
 
 
@@ -117,14 +124,18 @@ class UserDefinedFrame extends PlainTextFrame {
 /// - WCP: Copyright/Legal information
 /// - WPB: Publishers official webpage
 class UrlFrame extends PlainTextFrame {
-  UrlFrame(String label, Uint8List data) : super(String.fromCharCodes(data), label, data);
+  UrlFrame.parse(String label, Uint8List data) : super(label, String.fromCharCodes(data));
+
+  UrlFrame(String label, String url) : super(label, url);
 }
 
 
 /// IPL: Involved people list.
 class IPL extends ID3Frame {
   Map<String, String> involvement;
-  factory IPL(String label, Uint8List data) {
+  int encoding;
+
+  factory IPL.parse(String label, Uint8List data) {
     Map<String, String> involvement;
     int encodingByte = data[0];
 
@@ -144,10 +155,10 @@ class IPL extends ID3Frame {
       involvement[key] = value;
       cursor = secondClosestZero + 1;
     }
-    return IPL._(involvement, label, data);
+    return IPL(involvement, encoding: encodingByte);
   }
 
-  IPL._(this.involvement, String label, Uint8List data) : super(label, data);
+  IPL(this.involvement, {this.encoding}) : super('IPL');
 }
 
 
@@ -156,7 +167,11 @@ class IPL extends ID3Frame {
 /// Refers to the following frames:
 /// - MCI: Music CD Identifier
 class BinaryFrame extends ID3Frame {
-  BinaryFrame(String label, Uint8List data) : super(label, data);
+  Uint8List data;
+
+  BinaryFrame.parse(String label, this.data) : super(label);
+
+  BinaryFrame(String label, this.data) : super(label);
 }
 
 
@@ -167,42 +182,41 @@ class BinaryFrame extends ID3Frame {
 /// - STC: Synced tempo codes
 class TimestampFrame extends ID3Frame {
   int timestampType;
-  Uint8List binContent;
+  Uint8List data;
 
-  TimestampFrame(String label, Uint8List data)
-      : timestampType = data[0], binContent = getViewRegion(data, start: 1), super(label, data);
+  TimestampFrame.parse(String label, Uint8List data)
+      : timestampType = data[0], data = getViewRegion(data, start: 1), super(label);
+
+  TimestampFrame(String label, this.timestampType, this.data) : super(label);
 }
 
 
 /// MLL: MPEG location lookup table.
-class MLL extends ID3Frame {
+class MLL extends BinaryFrame {
   int framesBetweenRef;
   int bytesBetweenRef;
   int msBetweenRef;
   int bitsForByteDev;
   int bitsForMsDev;
-  Uint8List referencesRaw;
 
-  factory MLL(String label, Uint8List data) {
+  factory MLL.parse(String label, Uint8List data) {
     final framesBetweenRef = readInt(data.getRange(0, 2));
     final bytesBetweenRef = readInt(data.getRange(2, 5));
     final msBetweenRef = readInt(data.getRange(5, 8));
     final bitsForByteDev = data[8];
     final bitsForMsDev = data[9];
-    return MLL._(
+    return MLL(
       framesBetweenRef,
       bytesBetweenRef,
       msBetweenRef,
       bitsForByteDev,
       bitsForMsDev,
       getViewRegion(data, start: 10),
-      label,
-      data,
     );
   }
 
-  MLL._(this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef, this.bitsForByteDev,
-      this.bitsForMsDev, this.referencesRaw, String label, Uint8List data) : super(label, data);
+  MLL(this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
+      this.bitsForByteDev, this.bitsForMsDev, Uint8List data) : super('MLL', data);
 }
 
 
@@ -215,7 +229,7 @@ class LangDescTextFrame extends PlainTextFrame {
   String language;
   String description;
 
-  factory LangDescTextFrame(String label, Uint8List data) {
+  factory LangDescTextFrame.parse(String label, Uint8List data) {
     int encodingByte = data[0];
     String language = String.fromCharCodes(data.getRange(1, 4));
     int nullSeparator = data.indexOf(0, 4);
@@ -223,30 +237,30 @@ class LangDescTextFrame extends PlainTextFrame {
     final rawDescription = getViewRegion(data, start: 4, end: nullSeparator);
     final rawText = getViewRegion(data, start: nullSeparator + 1);
 
-    return LangDescTextFrame._(
+    return LangDescTextFrame(
+      label,
       language,
       decodeByEncodingByte(rawDescription, encodingByte),
       decodeByEncodingByte(rawText, encodingByte),
-      label,
-      data
+      encoding: encodingByte,
     );
   }
 
-  LangDescTextFrame._(this.language, this.description, String text, String label, Uint8List data)
-      : super(text, label, data);
+  LangDescTextFrame(String label, this.language, this.description, String text, {int encoding})
+      : super(label, text, encoding: encoding);
 }
 
 
 /// SLT: Synchronised lyrics/text.
 class SLT extends ID3Frame {
-  int encodingByte;
+  int encoding;
   String language;
   int timestampType;
   int contentType;
   String descriptor;
-  Uint8List rawLyrics;
+  Uint8List data;
 
-  factory SLT(String label, Uint8List data) {
+  factory SLT.parse(String label, Uint8List data) {
     int encodingByte = data[0];
     String language = String.fromCharCodes(data.getRange(1, 4));
     int timestampType = data[4];
@@ -256,20 +270,18 @@ class SLT extends ID3Frame {
     final rawDescriptor = getViewRegion(data, start: 6, end: nullSeparator);
     final rawLyrics = getViewRegion(data, start: nullSeparator + 1);
 
-    return SLT._(
-      encodingByte,
+    return SLT(
       language,
       timestampType,
       contentType,
       decodeByEncodingByte(rawDescriptor, encodingByte),
       rawLyrics,
-      label,
-      data
+      encoding: encodingByte,
     );
   }
 
-  SLT._(this.encodingByte, this.language, this.timestampType, this.contentType, this.descriptor,
-      this.rawLyrics, String label, Uint8List data) : super(label, data);
+  SLT(this.language, this.timestampType, this.contentType, this.descriptor,
+      this.data, {this.encoding = iso_8859_1}) : super('SLT');
 }
 
 
@@ -282,7 +294,7 @@ class RVA extends ID3Frame {
   int peakLeft;
   int peakRight;
 
-  factory RVA(String label, Uint8List data) {
+  factory RVA.parse(String label, Uint8List data) {
     final incrementFlags = data[0];
     if (incrementFlags & 0xFC != 0) {
       throw BadTagDataException('Unknown flags set for increment/decrement.');
@@ -299,12 +311,11 @@ class RVA extends ID3Frame {
     offset += volumeFieldSize;
     final peakRight = readInt(data.getRange(offset, offset + volumeFieldSize));
 
-    return RVA._(incrementFlags, bitsForVolume, relChangeLeft, relChangeRight, peakLeft, peakRight,
-        label, data);
+    return RVA(incrementFlags, bitsForVolume, relChangeLeft, relChangeRight, peakLeft, peakRight);
   }
 
-  RVA._(this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
-      this.peakLeft, this.peakRight, String label, Uint8List data) : super(label, data);
+  RVA(this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
+      this.peakLeft, this.peakRight) : super('RVA');
 }
 
 
@@ -313,8 +324,10 @@ class EQU extends ID3Frame {
   int adjustmentBits;
   Uint8List equCurve;
 
-  EQU(String label, Uint8List data) : adjustmentBits = data[0],
-      equCurve = getViewRegion(data, start: 1), super(label, data);
+  EQU.parse(String label, Uint8List data) : adjustmentBits = data[0],
+      equCurve = getViewRegion(data, start: 1), super(label);
+
+  EQU(this.adjustmentBits, this.equCurve) : super('EQU');
 }
 
 
@@ -331,19 +344,32 @@ class REV extends ID3Frame {
   int premixLR;
   int premixRL;
 
-  REV(String label, Uint8List data)
+  REV.parse(String label, Uint8List data)
       : reverbLeft = readInt(data.getRange(0, 2)),
         reverbRight = readInt(data.getRange(2, 4)),
         bounceLeft = data[4], bounceRight = data[5],
         feedbackLL = data[6], feedbackLR = data[7],
         feedbackRR = data[8], feedbackRL = data[9],
         premixLR = data[10], premixRL = data[11],
-        super(label, data);
+        super(label);
+
+  REV(
+    this.reverbLeft,
+    this.reverbRight,
+    this.bounceLeft,
+    this.bounceRight,
+    this.feedbackLL,
+    this.feedbackLR,
+    this.feedbackRR,
+    this.feedbackRL,
+    this.premixLR,
+    this.premixRL,
+  ) : super('REV');
 }
 
 
 /// PIC: Attached picture.
-class PIC extends ID3Frame {
+class PIC extends BinaryFrame {
   static const other = 1;
   static const fileIcon = 2;
   static const otherFileIcon = 3;
@@ -369,9 +395,8 @@ class PIC extends ID3Frame {
   String imageFormat;
   int pictureType;
   String description;
-  Uint8List imageData;
 
-  factory PIC(String label, Uint8List data) {
+  factory PIC.parse(String label, Uint8List data) {
     int encodingByte = data[0];
     final imageFormat = String.fromCharCodes(data.getRange(1, 4));
     int pictureType = data[4];
@@ -379,23 +404,22 @@ class PIC extends ID3Frame {
     int nullSeparator = data.indexOf(0, 4);
     final rawDescription = getViewRegion(data, start: 4, end: nullSeparator);
     final imageData = getViewRegion(data, start: nullSeparator + 1);
-    return PIC._(imageFormat, pictureType, decodeByEncodingByte(rawDescription, encodingByte),
-        imageData, label, data);
+    return PIC(imageFormat, pictureType, decodeByEncodingByte(rawDescription, encodingByte),
+        imageData);
   }
 
-  PIC._(this.imageFormat, this.pictureType, this.description, this.imageData,
-      String label, Uint8List data) : super(label, data);
+  PIC(this.imageFormat, this.pictureType, this.description, Uint8List data) : super('PIC', data);
 }
 
 
 /// GEO: General encapsulated object.
-class GEO extends ID3Frame {
+class GEO extends BinaryFrame {
   String mimeType;
   String filename;
   String description;
-  Uint8List rawData;
+  Uint8List data;
 
-  factory GEO(String label, Uint8List data) {
+  factory GEO.parse(String label, Uint8List data) {
     int encodingByte = data[0];
     int afterMimeType = data.indexOf(0, 1);
     int afterFilename = data.indexOf(0, afterMimeType + 1);
@@ -406,18 +430,15 @@ class GEO extends ID3Frame {
     final rawDescription = getViewRegion(data, start: afterFilename + 1, end: afterDescription);
     final rawData = getViewRegion(data, start: afterDescription + 1);
 
-    return GEO._(
+    return GEO(
       decodeByEncodingByte(rawMimeType, encodingByte),
       decodeByEncodingByte(rawFilename, encodingByte),
       decodeByEncodingByte(rawDescription, encodingByte),
       rawData,
-      label,
-      data,
     );
   }
 
-  GEO._(this.mimeType, this.filename, this.description, this.rawData, String label, Uint8List data)
-      : super(label, data);
+  GEO(this.mimeType, this.filename, this.description, Uint8List data) : super('GEO', data);
 }
 
 
@@ -425,7 +446,9 @@ class GEO extends ID3Frame {
 class CNT extends ID3Frame {
   int playCount;
 
-  CNT(String label, Uint8List data) : playCount = readInt(data), super(label, data);
+  CNT.parse(String label, Uint8List data) : playCount = readInt(data), super(label);
+
+  CNT(this.playCount) : super('CNT');
 }
 
 
@@ -435,7 +458,7 @@ class POP extends ID3Frame {
   int rating;
   int playCount;
 
-  factory POP(String label, Uint8List data) {
+  factory POP.parse(String label, Uint8List data) {
     int nullSeparator = data.indexOf(0);
     final email = String.fromCharCodes(data.getRange(0, nullSeparator));
     int rating = data[nullSeparator + 1];
@@ -446,10 +469,10 @@ class POP extends ID3Frame {
       playCount = null;
     }
 
-    return POP._(email, rating, playCount, label, data);
+    return POP(email, rating, playCount);
   }
 
-  POP._(this.email, this.rating, this.playCount, String label, Uint8List data) : super(label, data);
+  POP(this.email, this.rating, this.playCount) : super('POP');
 }
 
 
@@ -459,7 +482,7 @@ class BUF extends ID3Frame {
   bool embeddedInfo;
   int offsetToNextTag;
 
-  factory BUF(String label, Uint8List data) {
+  factory BUF.parse(String label, Uint8List data) {
     int bufferSize = readInt(data.getRange(0, 3));
     if (data[3] & 0xFE != 0) {
       throw BadTagDataException('Unknown flags set in the embedded info byte.');
@@ -472,21 +495,19 @@ class BUF extends ID3Frame {
       offset = null;
     }
 
-    return BUF._(bufferSize, embeddedInfo, offset, label, data);
+    return BUF(bufferSize, embeddedInfo, offset);
   }
 
-  BUF._(this.bufferSize, this.embeddedInfo, this.offsetToNextTag, String label, Uint8List data)
-      : super(label, data);
+  BUF(this.bufferSize, this.embeddedInfo, this.offsetToNextTag) : super('BUF');
 }
 
 
 /// CRM: Encrypted meta frame.
-class CRM extends ID3Frame {
+class CRM extends BinaryFrame {
   String owner;
   String explanation;
-  Uint8List encryptedData;
 
-  factory CRM(String label, Uint8List data) {
+  factory CRM.parse(String label, Uint8List data) {
     if (data[0] == 0) {
       throw BadTagDataException('First byte is null in CRM frame.');
     }
@@ -497,11 +518,10 @@ class CRM extends ID3Frame {
     final explanation = String.fromCharCodes(data.getRange(afterOwner + 1, afterExplanation));
     final encryptedData = Uint8List.view(data.buffer, afterExplanation + 1);
 
-    return CRM._(owner, explanation, encryptedData, label, data);
+    return CRM(owner, explanation, encryptedData);
   }
 
-  CRM._(this.owner, this.explanation, this.encryptedData, String label, Uint8List data)
-      : super(label, data);
+  CRM(this.owner, this.explanation, data) : super('CRM', data);
 }
 
 
@@ -512,7 +532,7 @@ class CRA extends ID3Frame {
   int previewLength;
   Uint8List encryptionInfo;
 
-  factory CRA(String label, Uint8List data) {
+  factory CRA.parse(String label, Uint8List data) {
     if (data[0] == 0) {
       throw BadTagDataException('First byte is null in CRA frame.');
     }
@@ -523,11 +543,10 @@ class CRA extends ID3Frame {
     final owner = String.fromCharCodes(data.getRange(0, afterOwner));
     final encryptionInfo = getViewRegion(data, start: afterOwner + 5);
 
-    return CRA._(owner, previewStart, previewLength, encryptionInfo, label, data);
+    return CRA(owner, previewStart, previewLength, encryptionInfo);
   }
 
-  CRA._(this.owner, this.previewStart, this.previewLength, this.encryptionInfo, String label,
-      Uint8List data) : super(label, data);
+  CRA(this.owner, this.previewStart, this.previewLength, this.encryptionInfo) : super('CRA');
 }
 
 
@@ -537,14 +556,14 @@ class LNK extends ID3Frame {
   String url;
   String idData;
 
-  factory LNK(String label, Uint8List data) {
+  factory LNK.parse(String label, Uint8List data) {
     final linkedFrame = String.fromCharCodes(data.getRange(0, 3));
     int afterUrl = data.indexOf(0, 3);
     final url = String.fromCharCodes(data.getRange(3, afterUrl));
     final idData = String.fromCharCodes(data.getRange(afterUrl + 1, data.length));
 
-    return LNK._(linkedFrame, url, idData, label, data);
+    return LNK(linkedFrame, url, idData);
   }
 
-  LNK._(this.linkedFrame, this.url, this.idData, String label, Uint8List data) : super(label, data);
+  LNK(this.linkedFrame, this.url, this.idData) : super('LNK');
 }
