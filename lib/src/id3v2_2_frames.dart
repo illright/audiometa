@@ -8,7 +8,7 @@ import 'helpers.dart';
 /// UFI: Unique file identifier.
 class UFI extends ID3Frame {
   String owner;
-  String identifier;
+  Uint8List identifier;
 
   UFI(String label, Uint8List data) : super(label, data) {
     if (data[0] == 0) {
@@ -16,7 +16,7 @@ class UFI extends ID3Frame {
     }
     int nullSeparator = data.indexOf(0);
     owner = String.fromCharCodes(data.getRange(0, nullSeparator));
-    identifier = String.fromCharCodes(data.getRange(nullSeparator + 1, data.length));
+    identifier = getViewRegion(data, start: nullSeparator + 1);
   }
 }
 
