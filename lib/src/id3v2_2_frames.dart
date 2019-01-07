@@ -21,7 +21,7 @@ class UFI extends ID3Frame {
     identifier = getViewRegion(data, start: nullSeparator + 1);
   }
 
-  UFI(this.owner, this.identifier) : super('UFI');
+  UFI({this.owner, this.identifier}) : super('UFI');
 }
 
 
@@ -32,7 +32,7 @@ abstract class PlainTextFrame extends ID3Frame {
   String text;
   int encoding;
 
-  PlainTextFrame(String label, this.text, {this.encoding = iso_8859_1}) : super(label);
+  PlainTextFrame(String label, {this.text, this.encoding = iso_8859_1}) : super(label);
 }
 
 
@@ -78,11 +78,12 @@ class TextFrame extends PlainTextFrame {
   TextFrame.parse(String label, Uint8List data)
       : super(
           label,
-          decodeByEncodingByte(getViewRegion(data, start: 1), data[0]),
+          text: decodeByEncodingByte(getViewRegion(data, start: 1), data[0]),
           encoding: data[0],
         );
 
-  TextFrame(String label, String text, {int encoding}) : super(label, text, encoding: encoding);
+  TextFrame(String label, {String text, int encoding})
+      : super(label, text: text, encoding: encoding);
 }
 
 
@@ -103,14 +104,14 @@ class UserDefinedFrame extends PlainTextFrame {
 
     return UserDefinedFrame(
       label,
-      decodeByEncodingByte(rawDescription, encodingByte),
-      decodeByEncodingByte(rawText, encodingByte),
+      description: decodeByEncodingByte(rawDescription, encodingByte),
+      text: decodeByEncodingByte(rawText, encodingByte),
       encoding: encodingByte,
     );
   }
 
-  UserDefinedFrame(String label, this.description, String text, {int encoding})
-      : super(text, label, encoding: encoding);
+  UserDefinedFrame(String label, {this.description, String text, int encoding})
+      : super(label, text: text, encoding: encoding);
 }
 
 
@@ -124,9 +125,9 @@ class UserDefinedFrame extends PlainTextFrame {
 /// - WCP: Copyright/Legal information
 /// - WPB: Publishers official webpage
 class UrlFrame extends PlainTextFrame {
-  UrlFrame.parse(String label, Uint8List data) : super(label, String.fromCharCodes(data));
+  UrlFrame.parse(String label, Uint8List data) : super(label, text: String.fromCharCodes(data));
 
-  UrlFrame(String label, String url) : super(label, url);
+  UrlFrame(String label, {String url}) : super(label, text: url);
 }
 
 
@@ -171,7 +172,7 @@ class BinaryFrame extends ID3Frame {
 
   BinaryFrame.parse(String label, this.data) : super(label);
 
-  BinaryFrame(String label, this.data) : super(label);
+  BinaryFrame(String label, {this.data}) : super(label);
 }
 
 
@@ -187,7 +188,7 @@ class TimestampFrame extends ID3Frame {
   TimestampFrame.parse(String label, Uint8List data)
       : timestampType = data[0], data = getViewRegion(data, start: 1), super(label);
 
-  TimestampFrame(String label, this.timestampType, this.data) : super(label);
+  TimestampFrame(String label, {this.timestampType, this.data}) : super(label);
 }
 
 
@@ -199,7 +200,7 @@ class MLL extends BinaryFrame {
   int bitsForByteDev;
   int bitsForMsDev;
 
-  MLL.parse(String label, Uint8List data) : super('MLL', getViewRegion(data, start: 10)) {
+  MLL.parse(String label, Uint8List data) : super('MLL', data: getViewRegion(data, start: 10)) {
     framesBetweenRef = readInt(data.getRange(0, 2));
     bytesBetweenRef = readInt(data.getRange(2, 5));
     msBetweenRef = readInt(data.getRange(5, 8));
@@ -207,8 +208,8 @@ class MLL extends BinaryFrame {
     bitsForMsDev = data[9];
   }
 
-  MLL(this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
-      this.bitsForByteDev, this.bitsForMsDev, Uint8List data) : super('MLL', data);
+  MLL({this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
+      this.bitsForByteDev, this.bitsForMsDev, Uint8List data}) : super('MLL', data: data);
 }
 
 
@@ -231,15 +232,15 @@ class LangDescTextFrame extends PlainTextFrame {
 
     return LangDescTextFrame(
       label,
-      language,
-      decodeByEncodingByte(rawDescription, encodingByte),
-      decodeByEncodingByte(rawText, encodingByte),
+      language: language,
+      description: decodeByEncodingByte(rawDescription, encodingByte),
+      text: decodeByEncodingByte(rawText, encodingByte),
       encoding: encodingByte,
     );
   }
 
-  LangDescTextFrame(String label, this.language, this.description, String text, {int encoding})
-      : super(label, text, encoding: encoding);
+  LangDescTextFrame(String label, {this.language, this.description, String text, int encoding})
+      : super(label, text: text, encoding: encoding);
 }
 
 
@@ -264,8 +265,8 @@ class SLT extends ID3Frame {
     data = getViewRegion(data, start: nullSeparator + 1);
   }
 
-  SLT(this.language, this.timestampType, this.contentType, this.descriptor,
-      this.data, {this.encoding = iso_8859_1}) : super('SLT');
+  SLT({this.language, this.timestampType, this.contentType, this.descriptor,
+      this.data, this.encoding = iso_8859_1}) : super('SLT');
 }
 
 
@@ -296,8 +297,8 @@ class RVA extends ID3Frame {
     peakRight = readInt(data.getRange(offset, offset + volumeFieldSize));
   }
 
-  RVA(this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
-      this.peakLeft, this.peakRight) : super('RVA');
+  RVA({this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
+      this.peakLeft, this.peakRight}) : super('RVA');
 }
 
 
@@ -309,7 +310,7 @@ class EQU extends ID3Frame {
   EQU.parse(String label, Uint8List data) : adjustmentBits = data[0],
       equCurve = getViewRegion(data, start: 1), super(label);
 
-  EQU(this.adjustmentBits, this.equCurve) : super('EQU');
+  EQU({this.adjustmentBits, this.equCurve}) : super('EQU');
 }
 
 
@@ -335,7 +336,7 @@ class REV extends ID3Frame {
         premixLR = data[10], premixRL = data[11],
         super(label);
 
-  REV(
+  REV({
     this.reverbLeft,
     this.reverbRight,
     this.bounceLeft,
@@ -346,7 +347,7 @@ class REV extends ID3Frame {
     this.feedbackRL,
     this.premixLR,
     this.premixRL,
-  ) : super('REV');
+  }) : super('REV');
 }
 
 
@@ -386,11 +387,16 @@ class PIC extends BinaryFrame {
     int nullSeparator = data.indexOf(0, 4);
     final rawDescription = getViewRegion(data, start: 4, end: nullSeparator);
     final imageData = getViewRegion(data, start: nullSeparator + 1);
-    return PIC(imageFormat, pictureType, decodeByEncodingByte(rawDescription, encodingByte),
-        imageData);
+    return PIC(
+      imageFormat: imageFormat,
+      pictureType: pictureType,
+      description: decodeByEncodingByte(rawDescription, encodingByte),
+      data: imageData
+    );
   }
 
-  PIC(this.imageFormat, this.pictureType, this.description, Uint8List data) : super('PIC', data);
+  PIC({this.imageFormat, this.pictureType, this.description, Uint8List data})
+      : super('PIC', data: data);
 }
 
 
@@ -413,14 +419,14 @@ class GEO extends BinaryFrame {
     final rawData = getViewRegion(data, start: afterDescription + 1);
 
     return GEO(
-      decodeByEncodingByte(rawMimeType, encodingByte),
-      decodeByEncodingByte(rawFilename, encodingByte),
-      decodeByEncodingByte(rawDescription, encodingByte),
-      rawData,
+      mimeType: decodeByEncodingByte(rawMimeType, encodingByte),
+      filename: decodeByEncodingByte(rawFilename, encodingByte),
+      description: decodeByEncodingByte(rawDescription, encodingByte),
+      data: rawData,
     );
   }
 
-  GEO(this.mimeType, this.filename, this.description, Uint8List data) : super('GEO', data);
+  GEO({this.mimeType, this.filename, this.description, Uint8List data}) : super('GEO', data: data);
 }
 
 
@@ -430,7 +436,7 @@ class CNT extends ID3Frame {
 
   CNT.parse(String label, Uint8List data) : playCount = readInt(data), super(label);
 
-  CNT(this.playCount) : super('CNT');
+  CNT({this.playCount}) : super('CNT');
 }
 
 
@@ -452,7 +458,7 @@ class POP extends ID3Frame {
     }
   }
 
-  POP(this.email, this.rating, this.playCount) : super('POP');
+  POP({this.email, this.rating, this.playCount}) : super('POP');
 }
 
 
@@ -476,7 +482,7 @@ class BUF extends ID3Frame {
     }
   }
 
-  BUF(this.bufferSize, this.embeddedInfo, this.offsetToNextTag) : super('BUF');
+  BUF({this.bufferSize, this.embeddedInfo, this.offsetToNextTag}) : super('BUF');
 }
 
 
@@ -496,10 +502,14 @@ class CRM extends BinaryFrame {
     final explanation = String.fromCharCodes(data.getRange(afterOwner + 1, afterExplanation));
     final encryptedData = Uint8List.view(data.buffer, afterExplanation + 1);
 
-    return CRM(owner, explanation, encryptedData);
+    return CRM(
+      owner: owner,
+      explanation: explanation,
+      data: encryptedData
+    );
   }
 
-  CRM(this.owner, this.explanation, data) : super('CRM', data);
+  CRM({this.owner, this.explanation, data}) : super('CRM', data: data);
 }
 
 
@@ -522,7 +532,7 @@ class CRA extends ID3Frame {
     encryptionInfo = getViewRegion(data, start: afterOwner + 5);
   }
 
-  CRA(this.owner, this.previewStart, this.previewLength, this.encryptionInfo) : super('CRA');
+  CRA({this.owner, this.previewStart, this.previewLength, this.encryptionInfo}) : super('CRA');
 }
 
 
@@ -539,5 +549,5 @@ class LNK extends ID3Frame {
     idData = String.fromCharCodes(data.getRange(afterUrl + 1, data.length));
   }
 
-  LNK(this.linkedFrame, this.url, this.idData) : super('LNK');
+  LNK({this.linkedFrame, this.url, this.idData}) : super('LNK');
 }
