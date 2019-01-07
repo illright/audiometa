@@ -104,16 +104,19 @@ class ID3v2_2Parser {
     // Frames
     int cursor = start + 10;
     var frames = Map<String, List<ID3Frame>>();
+    if (unsync) {
+      data = removeUnsync(data);
+    }
     while (cursor < start + 10 + tagSize) {
       var frameLabel = String.fromCharCodes(data.getRange(cursor, cursor + 3));
       if (frameLabel == '\x00\x00\x00') {
         break;  // Hit padding bytes
       }
       int frameSize = readInt(data.getRange(cursor + 3, cursor + 6));
-      var frameData = Uint8List.view(data.buffer, cursor + 6, frameSize);
+      var frameData = getViewRegion(data, start: cursor + 6, length: frameSize);
       var frame = frameByID[frameLabel](
         frameLabel,
-        unsync ? removeUnsync(frameData) : frameData,
+        frameData,
       );
       if (frames.containsKey(frameLabel)) {
         frames[frameLabel].add(frame);
