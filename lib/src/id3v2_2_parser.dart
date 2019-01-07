@@ -105,6 +105,7 @@ class ID3v2_2Parser {
     int cursor = start + 10;
     var frames = Map<String, List<ID3Frame>>();
     if (unsync) {
+      // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
       data = removeUnsync(data);
     }
     while (cursor < start + 10 + tagSize) {
