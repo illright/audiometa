@@ -60,7 +60,7 @@ Uint8List getViewRegion(Uint8List view, {int start = 0, int end, int length}) {
 ///
 /// According to the spec of the unsynchronization scheme, it's required and sufficient to
 /// remove every 0x00 that immediately follows 0xFF.
-Uint8List removeUnsync(Uint8List data) {
+Uint8List resync(Uint8List data) {
   var result = Uint8List(data.lengthInBytes);
   int lastByte;
   int cursor = 0;

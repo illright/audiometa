@@ -106,7 +106,7 @@ class ID3v22Parser {
     var frames = Map<String, List<ID3Frame>>();
     if (unsync) {
       // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
-      data = removeUnsync(data);
+      data = resync(data);
     }
     while (cursor < start + 10 + tagSize) {
       var frameLabel = String.fromCharCodes(data.getRange(cursor, cursor + 3));
