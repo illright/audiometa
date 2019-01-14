@@ -27,12 +27,10 @@ class UFI extends ID3Frame {
 
 /// Frame that mainly contains text.
 ///
-/// This class is abstract so it does not refer to any actual frames.
-abstract class PlainTextFrame extends ID3Frame {
+/// This is an interface so it does not refer to any actual frames.
+abstract class PlainTextFrame {
   String text;
   int encoding;
-
-  PlainTextFrame(String label, {this.text, this.encoding = iso_8859_1}) : super(label);
 }
 
 
@@ -74,16 +72,15 @@ abstract class PlainTextFrame extends ID3Frame {
 /// - TOA: Original artist(s)/performer(s)
 /// - TOL: Original Lyricist(s)/text writer(s)
 /// - TOR: Original release year
-class TextFrame extends PlainTextFrame {
-  TextFrame.parse(String label, Uint8List data)
-      : super(
-          label,
-          text: decodeByEncodingByte(getViewRegion(data, start: 1), data[0]),
-          encoding: data[0],
-        );
+class TextFrame extends ID3Frame implements PlainTextFrame {
+  String text;
+  int encoding;
 
-  TextFrame(String label, {String text, int encoding})
-      : super(label, text: text, encoding: encoding);
+  TextFrame.parse(String label, Uint8List data)
+      : text = decodeByEncodingByte(getViewRegion(data, start: 1), data[0]), encoding = data[0],
+        super(label);
+
+  TextFrame(String label, {this.text, this.encoding = iso_8859_1}) : super(label);
 }
 
 
@@ -92,7 +89,9 @@ class TextFrame extends PlainTextFrame {
 /// Refers to the following frames:
 /// - TXX: User defined text information frame
 /// - WXX: User defined URL link frame
-class UserDefinedFrame extends PlainTextFrame {
+class UserDefinedFrame extends ID3Frame implements PlainTextFrame {
+  String text;
+  int encoding;
   String description;
 
   factory UserDefinedFrame.parse(String label, Uint8List data) {
@@ -110,8 +109,8 @@ class UserDefinedFrame extends PlainTextFrame {
     );
   }
 
-  UserDefinedFrame(String label, {this.description, String text, int encoding})
-      : super(label, text: text, encoding: encoding);
+  UserDefinedFrame(String label, {this.description, this.text, this.encoding = iso_8859_1})
+      : super(label);
 }
 
 
@@ -124,10 +123,14 @@ class UserDefinedFrame extends PlainTextFrame {
 /// - WCM: Commercial information
 /// - WCP: Copyright/Legal information
 /// - WPB: Publishers official webpage
-class UrlFrame extends PlainTextFrame {
-  UrlFrame.parse(String label, Uint8List data) : super(label, text: String.fromCharCodes(data));
+class UrlFrame extends ID3Frame implements PlainTextFrame {
+  String text;
+  int encoding;
 
-  UrlFrame(String label, {String url}) : super(label, text: url);
+  UrlFrame.parse(String label, Uint8List data)
+      : text = String.fromCharCodes(data), encoding = iso_8859_1, super(label);
+
+  UrlFrame(String label, {this.text}) : encoding = iso_8859_1, super(label);
 }
 
 
@@ -159,20 +162,25 @@ class IPL extends ID3Frame {
     }
   }
 
-  IPL(this.involvement, {this.encoding}) : super('IPL');
+  IPL(this.involvement, {this.encoding = iso_8859_1}) : super('IPL');
 }
 
 
-/// Frame that doesn't have a special content-parsing algorithm.
+/// Frame that mainly contains binary data, the parsing of which is out of scope of this library.
 ///
-/// Refers to the following frames:
-/// - MCI: Music CD Identifier
-class BinaryFrame extends ID3Frame {
+/// This is an interface so it does not refer to any actual frames.
+class BinaryFrame {
+  Uint8List data;
+}
+
+
+/// MCI: Music CD Identifier
+class MCI extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
-  BinaryFrame.parse(String label, this.data) : super(label);
+  MCI.parse(String label, Uint8List data) : data = data, super('MCI');
 
-  BinaryFrame(String label, {this.data}) : super(label);
+  MCI({this.data}) : super('MCI');
 }
 
 
@@ -181,7 +189,7 @@ class BinaryFrame extends ID3Frame {
 /// Refers to the following frames:
 /// - ETC: Event timing codes
 /// - STC: Synced tempo codes
-class TimestampFrame extends ID3Frame {
+class TimestampFrame extends ID3Frame implements BinaryFrame {
   int timestampType;
   Uint8List data;
 
@@ -193,14 +201,15 @@ class TimestampFrame extends ID3Frame {
 
 
 /// MLL: MPEG location lookup table.
-class MLL extends BinaryFrame {
+class MLL extends ID3Frame implements BinaryFrame {
   int framesBetweenRef;
   int bytesBetweenRef;
   int msBetweenRef;
   int bitsForByteDev;
   int bitsForMsDev;
+  Uint8List data;
 
-  MLL.parse(String label, Uint8List data) : super('MLL', data: getViewRegion(data, start: 10)) {
+  MLL.parse(String label, Uint8List data) : data = getViewRegion(data, start: 10), super('MLL') {
     framesBetweenRef = readInt(data.getRange(0, 2));
     bytesBetweenRef = readInt(data.getRange(2, 5));
     msBetweenRef = readInt(data.getRange(5, 8));
@@ -209,7 +218,7 @@ class MLL extends BinaryFrame {
   }
 
   MLL({this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
-      this.bitsForByteDev, this.bitsForMsDev, Uint8List data}) : super('MLL', data: data);
+      this.bitsForByteDev, this.bitsForMsDev, this.data}) : super('MLL');
 }
 
 
@@ -218,9 +227,11 @@ class MLL extends BinaryFrame {
 /// Refers to the following frames:
 /// - ULT: Unsynchronised lyrics/text transcription
 /// - COM: Comments
-class LangDescTextFrame extends PlainTextFrame {
+class LangDescTextFrame extends ID3Frame implements PlainTextFrame {
   String language;
   String description;
+  String text;
+  int encoding;
 
   factory LangDescTextFrame.parse(String label, Uint8List data) {
     int encodingByte = data[0];
@@ -239,13 +250,13 @@ class LangDescTextFrame extends PlainTextFrame {
     );
   }
 
-  LangDescTextFrame(String label, {this.language, this.description, String text, int encoding})
-      : super(label, text: text, encoding: encoding);
+  LangDescTextFrame(String label,
+      {this.language, this.description, this.text, this.encoding = iso_8859_1}) : super(label);
 }
 
 
 /// SLT: Synchronised lyrics/text.
-class SLT extends ID3Frame {
+class SLT extends ID3Frame implements BinaryFrame {
   int encoding;
   String language;
   int timestampType;
@@ -303,14 +314,14 @@ class RVA extends ID3Frame {
 
 
 /// EQU: Equalisation
-class EQU extends ID3Frame {
+class EQU extends ID3Frame implements BinaryFrame {
   int adjustmentBits;
-  Uint8List equCurve;
+  Uint8List data;
 
   EQU.parse(String label, Uint8List data) : adjustmentBits = data[0],
-      equCurve = getViewRegion(data, start: 1), super(label);
+      data = getViewRegion(data, start: 1), super(label);
 
-  EQU({this.adjustmentBits, this.equCurve}) : super('EQU');
+  EQU({this.adjustmentBits, this.data}) : super('EQU');
 }
 
 
@@ -352,7 +363,7 @@ class REV extends ID3Frame {
 
 
 /// PIC: Attached picture.
-class PIC extends BinaryFrame {
+class PIC extends ID3Frame implements BinaryFrame {
   static const other = 1;
   static const fileIcon = 2;
   static const otherFileIcon = 3;
@@ -378,6 +389,7 @@ class PIC extends BinaryFrame {
   String imageFormat;
   int pictureType;
   String description;
+  Uint8List data;
 
   factory PIC.parse(String label, Uint8List data) {
     int encodingByte = data[0];
@@ -395,13 +407,12 @@ class PIC extends BinaryFrame {
     );
   }
 
-  PIC({this.imageFormat, this.pictureType, this.description, Uint8List data})
-      : super('PIC', data: data);
+  PIC({this.imageFormat, this.pictureType, this.description, this.data}) : super('PIC');
 }
 
 
 /// GEO: General encapsulated object.
-class GEO extends BinaryFrame {
+class GEO extends ID3Frame implements BinaryFrame {
   String mimeType;
   String filename;
   String description;
@@ -426,7 +437,7 @@ class GEO extends BinaryFrame {
     );
   }
 
-  GEO({this.mimeType, this.filename, this.description, Uint8List data}) : super('GEO', data: data);
+  GEO({this.mimeType, this.filename, this.description, this.data}) : super('GEO');
 }
 
 
@@ -487,9 +498,10 @@ class BUF extends ID3Frame {
 
 
 /// CRM: Encrypted meta frame.
-class CRM extends BinaryFrame {
+class CRM extends ID3Frame implements BinaryFrame {
   String owner;
   String explanation;
+  Uint8List data;
 
   factory CRM.parse(String label, Uint8List data) {
     if (data[0] == 0) {
@@ -509,16 +521,16 @@ class CRM extends BinaryFrame {
     );
   }
 
-  CRM({this.owner, this.explanation, data}) : super('CRM', data: data);
+  CRM({this.owner, this.explanation, this.data}) : super('CRM');
 }
 
 
 /// CRA: Audio encryption.
-class CRA extends ID3Frame {
+class CRA extends ID3Frame implements BinaryFrame {
   String owner;
   int previewStart;
   int previewLength;
-  Uint8List encryptionInfo;
+  Uint8List data;
 
   CRA.parse(String label, Uint8List data) : super('CRA') {
     if (data[0] == 0) {
@@ -529,10 +541,10 @@ class CRA extends ID3Frame {
     previewLength = readInt(data.getRange(afterOwner + 3, afterOwner + 5));
 
     owner = String.fromCharCodes(data.getRange(0, afterOwner));
-    encryptionInfo = getViewRegion(data, start: afterOwner + 5);
+    data = getViewRegion(data, start: afterOwner + 5);
   }
 
-  CRA({this.owner, this.previewStart, this.previewLength, this.encryptionInfo}) : super('CRA');
+  CRA({this.owner, this.previewStart, this.previewLength, this.data}) : super('CRA');
 }
 
 
