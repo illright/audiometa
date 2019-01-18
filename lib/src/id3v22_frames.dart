@@ -13,12 +13,12 @@ class UFI extends ID3Frame {
   Uint8List identifier;
 
   UFI.parse(String label, Uint8List data) : super(label) {
-    if (data[0] == 0) {
-      throw BadTagDataException('First byte is null in UFI frame.');
+    var parser = BinaryParser(data);
+    if (parser.nextByte() == 0) {
+      throw BadTagDataException('Owner identifier cannot be empty.');
     }
-    int nullSeparator = data.indexOf(0);
-    owner = String.fromCharCodes(data.getRange(0, nullSeparator));
-    identifier = getViewRegion(data, start: nullSeparator + 1);
+    owner = parser.getStringUntilNull();
+    identifier = parser.getBytesUntilEnd();
   }
 
   UFI({this.owner, this.identifier}) : super('UFI');
@@ -95,17 +95,14 @@ class UserDefinedFrame extends ID3Frame implements PlainTextFrame {
   String description;
 
   factory UserDefinedFrame.parse(String label, Uint8List data) {
-    int encodingByte = data[0];
-    int nullSeparator = data.indexOf(0, 1);
-
-    Uint8List rawDescription = getViewRegion(data, start: 1, end: nullSeparator);
-    Uint8List rawText = getViewRegion(data, start: nullSeparator + 1);
+    var parser = BinaryParser(data);
+    int encoding = parser.getByte();
 
     return UserDefinedFrame(
       label,
-      description: decodeByEncodingByte(rawDescription, encodingByte),
-      text: decodeByEncodingByte(rawText, encodingByte),
-      encoding: encodingByte,
+      description: parser.getStringUntilNull(encoding: encoding),
+      text: parser.getStringUntilEnd(encoding: encoding),
+      encoding: encoding,
     );
   }
 
@@ -140,25 +137,15 @@ class IPL extends ID3Frame {
   int encoding;
 
   IPL.parse(String label, Uint8List data) : super('IPL') {
-    encoding = data[0];
+    var parser = BinaryParser(data);
+    encoding = parser.getByte();
 
-    int cursor = 1;
-    int closestZero, secondClosestZero;
     involvement = Map<String, String>();
 
-    while (cursor < data.length) {
-      closestZero = data.indexOf(0, cursor);
-      secondClosestZero = data.indexOf(0, closestZero + 1);
-      var key = decodeByEncodingByte(
-        getViewRegion(data, start: cursor, end: closestZero),
-        encoding
-      );
-      var value = decodeByEncodingByte(
-        getViewRegion(data, start: closestZero + 1, end: secondClosestZero),
-        encoding
-      );
+    while (parser.hasMoreData()) {
+      var key = parser.getStringUntilNull(encoding: encoding);
+      var value = parser.getStringUntilNull(encoding: encoding);
       involvement[key] = value;
-      cursor = secondClosestZero + 1;
     }
   }
 
@@ -210,11 +197,12 @@ class MLL extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   MLL.parse(String label, Uint8List data) : data = getViewRegion(data, start: 10), super('MLL') {
-    framesBetweenRef = readInt(data.getRange(0, 2));
-    bytesBetweenRef = readInt(data.getRange(2, 5));
-    msBetweenRef = readInt(data.getRange(5, 8));
-    bitsForByteDev = data[8];
-    bitsForMsDev = data[9];
+    var parser = BinaryParser(data);
+    framesBetweenRef = parser.getInt(2);
+    bytesBetweenRef = parser.getInt(3);
+    msBetweenRef = parser.getInt(3);
+    bitsForByteDev = parser.getByte();
+    bitsForMsDev = parser.getByte();
   }
 
   MLL({this.framesBetweenRef, this.bytesBetweenRef, this.msBetweenRef,
@@ -234,19 +222,15 @@ class LangDescTextFrame extends ID3Frame implements PlainTextFrame {
   int encoding;
 
   factory LangDescTextFrame.parse(String label, Uint8List data) {
-    int encodingByte = data[0];
-    String language = String.fromCharCodes(data.getRange(1, 4));
-    int nullSeparator = data.indexOf(0, 4);
-
-    final rawDescription = getViewRegion(data, start: 4, end: nullSeparator);
-    final rawText = getViewRegion(data, start: nullSeparator + 1);
+    var parser = BinaryParser(data);
+    int encoding = parser.getByte();
 
     return LangDescTextFrame(
       label,
-      language: language,
-      description: decodeByEncodingByte(rawDescription, encodingByte),
-      text: decodeByEncodingByte(rawText, encodingByte),
-      encoding: encodingByte,
+      language: parser.getString(3),
+      description: parser.getStringUntilNull(encoding: encoding),
+      text: parser.getStringUntilEnd(encoding: encoding),
+      encoding: encoding,
     );
   }
 
@@ -265,15 +249,13 @@ class SLT extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   SLT.parse(String label, Uint8List data) : super('SLT') {
-    encoding = data[0];
-    language = String.fromCharCodes(data.getRange(1, 4));
-    timestampType = data[4];
-    contentType = data[5];
-    int nullSeparator = data.indexOf(0, 6);
-
-    final rawDescriptor = getViewRegion(data, start: 6, end: nullSeparator);
-    descriptor = decodeByEncodingByte(rawDescriptor, encoding);
-    data = getViewRegion(data, start: nullSeparator + 1);
+    var parser = BinaryParser(data);
+    encoding = parser.getByte();
+    language = parser.getString(3);
+    timestampType = parser.getByte();
+    contentType = parser.getByte();
+    descriptor = parser.getStringUntilNull(encoding: encoding);
+    data = parser.getBytesUntilEnd();
   }
 
   SLT({this.language, this.timestampType, this.contentType, this.descriptor,
@@ -285,31 +267,34 @@ class SLT extends ID3Frame implements BinaryFrame {
 class RVA extends ID3Frame {
   int incrementFlags;
   int bitsForVolume;
-  int relChangeLeft;
   int relChangeRight;
-  int peakLeft;
+  int relChangeLeft;
   int peakRight;
+  int peakLeft;
 
   RVA.parse(String label, Uint8List data) : super('RVA') {
-    incrementFlags = data[0];
+    var parser = BinaryParser(data);
+    incrementFlags = parser.getByte();
     if (incrementFlags & 0xFC != 0) {
       throw BadTagDataException('Unknown flags set for increment/decrement.');
     }
-    bitsForVolume = data[1];
+    bitsForVolume = parser.getByte();
 
     final volumeFieldSize = (bitsForVolume / 8).ceil() * 8;
-    int offset = 2;
-    relChangeLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
-    offset += volumeFieldSize;
-    relChangeRight = readInt(data.getRange(offset, offset + volumeFieldSize));
-    offset += volumeFieldSize;
-    peakLeft = readInt(data.getRange(offset, offset + volumeFieldSize));
-    offset += volumeFieldSize;
-    peakRight = readInt(data.getRange(offset, offset + volumeFieldSize));
+    if (volumeFieldSize == 0) {
+      throw BadTagDataException('Bits used for volume description cannot be zero.');
+    }
+    relChangeRight = parser.getInt(volumeFieldSize);
+    relChangeLeft = parser.getInt(volumeFieldSize);
+
+    if (parser.hasMoreData()) {
+      peakRight = parser.getInt(volumeFieldSize);
+      peakLeft = parser.getInt(volumeFieldSize);
+    }
   }
 
-  RVA({this.incrementFlags, this.bitsForVolume, this.relChangeLeft, this.relChangeRight,
-      this.peakLeft, this.peakRight}) : super('RVA');
+  RVA({this.incrementFlags, this.bitsForVolume, this.relChangeRight, this.relChangeLeft,
+      this.peakRight, this.peakLeft}) : super('RVA');
 }
 
 
@@ -319,7 +304,7 @@ class EQU extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   EQU.parse(String label, Uint8List data) : adjustmentBits = data[0],
-      data = getViewRegion(data, start: 1), super(label);
+      data = getViewRegion(data, start: 1), super('EQU');
 
   EQU({this.adjustmentBits, this.data}) : super('EQU');
 }
@@ -345,7 +330,7 @@ class REV extends ID3Frame {
         feedbackLL = data[6], feedbackLR = data[7],
         feedbackRR = data[8], feedbackRL = data[9],
         premixLR = data[10], premixRL = data[11],
-        super(label);
+        super('REV');
 
   REV({
     this.reverbLeft,
@@ -392,18 +377,16 @@ class PIC extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   factory PIC.parse(String label, Uint8List data) {
-    int encodingByte = data[0];
-    final imageFormat = String.fromCharCodes(data.getRange(1, 4));
-    int pictureType = data[4];
+    var parser = BinaryParser(data);
+    int encoding = parser.getByte();
+    final imageFormat = parser.getString(3);
+    int pictureType = parser.getByte();
 
-    int nullSeparator = data.indexOf(0, 4);
-    final rawDescription = getViewRegion(data, start: 4, end: nullSeparator);
-    final imageData = getViewRegion(data, start: nullSeparator + 1);
     return PIC(
       imageFormat: imageFormat,
       pictureType: pictureType,
-      description: decodeByEncodingByte(rawDescription, encodingByte),
-      data: imageData
+      description: parser.getStringUntilNull(encoding: encoding),
+      data: parser.getBytesUntilEnd(),
     );
   }
 
@@ -419,21 +402,14 @@ class GEO extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   factory GEO.parse(String label, Uint8List data) {
-    int encodingByte = data[0];
-    int afterMimeType = data.indexOf(0, 1);
-    int afterFilename = data.indexOf(0, afterMimeType + 1);
-    int afterDescription = data.indexOf(0, afterFilename + 1);
-
-    final rawMimeType = getViewRegion(data, start: 1, end: afterMimeType);
-    final rawFilename = getViewRegion(data, start: afterMimeType + 1, end: afterFilename);
-    final rawDescription = getViewRegion(data, start: afterFilename + 1, end: afterDescription);
-    final rawData = getViewRegion(data, start: afterDescription + 1);
+    var parser = BinaryParser(data);
+    int encoding = parser.getByte();
 
     return GEO(
-      mimeType: decodeByEncodingByte(rawMimeType, encodingByte),
-      filename: decodeByEncodingByte(rawFilename, encodingByte),
-      description: decodeByEncodingByte(rawDescription, encodingByte),
-      data: rawData,
+      mimeType: parser.getStringUntilNull(encoding: encoding),
+      filename: parser.getStringUntilNull(encoding: encoding),
+      description: parser.getStringUntilNull(encoding: encoding),
+      data: parser.getBytesUntilEnd(),
     );
   }
 
@@ -445,7 +421,7 @@ class GEO extends ID3Frame implements BinaryFrame {
 class CNT extends ID3Frame {
   int playCount;
 
-  CNT.parse(String label, Uint8List data) : playCount = readInt(data), super(label);
+  CNT.parse(String label, Uint8List data) : playCount = readInt(data), super('CNT');
 
   CNT({this.playCount}) : super('CNT');
 }
@@ -458,14 +434,13 @@ class POP extends ID3Frame {
   int playCount;
 
   POP.parse(String label, Uint8List data) : super('POP') {
-    int nullSeparator = data.indexOf(0);
-    email = String.fromCharCodes(data.getRange(0, nullSeparator));
-    rating = data[nullSeparator + 1];
+    var parser = BinaryParser(data);
 
-    if (nullSeparator + 2 != data.length) {
-      playCount = readInt(data.getRange(nullSeparator + 2, data.length));
-    } else {
-      playCount = null;
+    email = parser.getStringUntilNull();
+    rating = parser.getByte();
+
+    if (parser.hasMoreData()) {
+      playCount = parser.getIntUntilEnd();
     }
   }
 
@@ -480,16 +455,15 @@ class BUF extends ID3Frame {
   int offsetToNextTag;
 
   BUF.parse(String label, Uint8List data) : super('BUF') {
-    bufferSize = readInt(data.getRange(0, 3));
-    if (data[3] & 0xFE != 0) {
+    var parser = BinaryParser(data);
+    bufferSize = parser.getInt(3);
+    if (parser.nextByte() & 0xFE != 0) {
       throw BadTagDataException('Unknown flags set in the embedded info byte.');
     }
-    embeddedInfo = data[3] == 1;
+    embeddedInfo = parser.getByte() == 0x1;
 
-    if (data.length != 4) {
-      offsetToNextTag = readInt(data.getRange(4, data.length));
-    } else {
-      offsetToNextTag = null;
+    if (parser.hasMoreData()) {
+      offsetToNextTag = parser.getIntUntilEnd();
     }
   }
 
@@ -504,20 +478,15 @@ class CRM extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   factory CRM.parse(String label, Uint8List data) {
-    if (data[0] == 0) {
+    var parser = BinaryParser(data);
+    if (parser.nextByte() == 0) {
       throw BadTagDataException('First byte is null in CRM frame.');
     }
-    int afterOwner = data.indexOf(0);
-    int afterExplanation = data.indexOf(0, afterOwner + 1);
-
-    final owner = String.fromCharCodes(data.getRange(0, afterOwner));
-    final explanation = String.fromCharCodes(data.getRange(afterOwner + 1, afterExplanation));
-    final encryptedData = Uint8List.view(data.buffer, afterExplanation + 1);
 
     return CRM(
-      owner: owner,
-      explanation: explanation,
-      data: encryptedData
+      owner: parser.getStringUntilNull(),
+      explanation: parser.getStringUntilNull(),
+      data: parser.getBytesUntilEnd(),
     );
   }
 
@@ -533,15 +502,15 @@ class CRA extends ID3Frame implements BinaryFrame {
   Uint8List data;
 
   CRA.parse(String label, Uint8List data) : super('CRA') {
-    if (data[0] == 0) {
+    var parser = BinaryParser(data);
+    if (parser.nextByte() == 0) {
       throw BadTagDataException('First byte is null in CRA frame.');
     }
-    int afterOwner = data.indexOf(0);
-    previewStart = readInt(data.getRange(afterOwner + 1, afterOwner + 3));
-    previewLength = readInt(data.getRange(afterOwner + 3, afterOwner + 5));
 
-    owner = String.fromCharCodes(data.getRange(0, afterOwner));
-    data = getViewRegion(data, start: afterOwner + 5);
+    owner = parser.getStringUntilNull();
+    previewStart = parser.getInt(2);
+    previewLength = parser.getInt(2);
+    data = parser.getBytesUntilEnd();
   }
 
   CRA({this.owner, this.previewStart, this.previewLength, this.data}) : super('CRA');
@@ -555,10 +524,10 @@ class LNK extends ID3Frame {
   String idData;
 
   LNK.parse(String label, Uint8List data) : super('LNK') {
-    linkedFrame = String.fromCharCodes(data.getRange(0, 3));
-    int afterUrl = data.indexOf(0, 3);
-    url = String.fromCharCodes(data.getRange(3, afterUrl));
-    idData = String.fromCharCodes(data.getRange(afterUrl + 1, data.length));
+    var parser = BinaryParser(data);
+    linkedFrame = parser.getString(3);
+    url = parser.getStringUntilNull();
+    idData = parser.getStringUntilEnd();
   }
 
   LNK({this.linkedFrame, this.url, this.idData}) : super('LNK');

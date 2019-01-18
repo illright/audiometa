@@ -76,45 +76,46 @@ final frameByID = <String, ID3Frame Function(String, Uint8List)>{
 class ID3v22Parser {
   static ID3Tag parseForward(Uint8List data, {int start = 0}) {
     // Informal spec here: http://id3.org/id3v2-00
+    var parser = BinaryParser(data, cursor: start);
     // The "ID3" identifier
     if (!(
-         data[start    ] == 0x49  // "I"
-      && data[start + 1] == 0x44  // "D"
-      && data[start + 2] == 0x33  // "3"
+         parser.getByte() == 0x49  // "I"
+      && parser.getByte() == 0x44  // "D"
+      && parser.getByte() == 0x33  // "3"
     ))
       throw BadTagException('Missing "ID3" identifier');
 
     // Version identifier
     if (!(
-         data[start + 3] == 0x02
-      && data[start + 4] == 0x00
+         parser.getByte() == 0x02
+      && parser.getByte() == 0x00
     ))
       throw BadTagException('Expected v2.2.0 tag, v2.${data[start + 3]}.${data[start + 4]} found');
 
     // Flag bits
+    int flags = parser.getByte();
     if (!(
-      data[start + 5] & 0x7F == 0  // 0x7F == 0b01111111
+      flags & 0x7F == 0  // 0x7F == 0b01111111
     ))
       throw BadTagException('Expected only bit 7 to be set for flags');
 
-    bool unsync = data[start + 5] & 0x80 != 0;  // 0x80 == 0b10000000
+    bool unsync = flags & 0x80 != 0;  // 0x80 == 0b10000000
     // Tag size
-    int tagSize = readInt(data.getRange(start + 6, start + 10), synchSafe: true);
+    int tagSize = parser.getInt(4, synchSafe: true);
 
     // Frames
-    int cursor = start + 10;
     var frames = Map<String, List<ID3Frame>>();
     if (unsync) {
       // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
       data = resync(data);
     }
-    while (cursor < start + 10 + tagSize) {
-      var frameLabel = String.fromCharCodes(data.getRange(cursor, cursor + 3));
+    while (!parser.exceeds(tagSize)) {
+      var frameLabel = parser.getString(3);
       if (frameLabel == '\x00\x00\x00') {
         break;  // Hit padding bytes
       }
-      int frameSize = readInt(data.getRange(cursor + 3, cursor + 6));
-      var frameData = getViewRegion(data, start: cursor + 6, length: frameSize);
+      int frameSize = parser.getInt(3);
+      var frameData = parser.getBytes(frameSize);
       var frame = frameByID[frameLabel](frameLabel, frameData);
 
       if (frames.containsKey(frameLabel)) {
@@ -122,12 +123,11 @@ class ID3v22Parser {
       } else {
         frames[frameLabel] = [frame];
       }
-      cursor += 6 + frameSize;
     }
 
     return ID3Tag(
       version: ID3.v2_2,
-      flags: data[start + 5],
+      flags: flags,
       frames: frames,
     );
   }
