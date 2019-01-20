@@ -148,8 +148,9 @@ class IPL extends ID3Frame {
 }
 
 
-/// Frame that mainly contains binary data, the parsing of which is out of scope of this library.
+/// Frame that mainly contains binary data.
 ///
+/// The parsing of that data is currently not in the roadmap for this library, but may come later.
 /// This is an interface so it does not refer to any actual frames.
 class BinaryFrame {
   Uint8List data;
