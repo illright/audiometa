@@ -101,7 +101,7 @@ class ID3v22Parser {
 
     bool unsync = flags & 0x80 != 0;  // 0x80 == 0b10000000
     // Tag size
-    int tagSize = parser.getInt(4, synchSafe: true);
+    int tagSize = parser.getInt(size: 4, synchSafe: true);
 
     // Frames
     var frames = Map<String, List<ID3Frame>>();
@@ -110,12 +110,12 @@ class ID3v22Parser {
       data = resync(data);
     }
     while (!parser.exceeds(tagSize)) {
-      var frameLabel = parser.getString(3);
+      var frameLabel = parser.getString(size: 3);
       if (frameLabel == '\x00\x00\x00') {
         break;  // Hit padding bytes
       }
-      int frameSize = parser.getInt(3);
-      var frameData = parser.getBytes(frameSize);
+      int frameSize = parser.getInt(size: 3);
+      var frameData = parser.getBytes(size: frameSize);
       var frame = frameByID[frameLabel](frameLabel, frameData);
 
       if (frames.containsKey(frameLabel)) {

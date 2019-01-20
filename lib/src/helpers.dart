@@ -5,6 +5,10 @@ import 'package:utf/utf.dart';
 
 import 'exceptions.dart';
 
+const iso_8859_1 = 0;
+const utf16 = 1;
+const utf16be = 2;
+
 
 /// Returns an integer that is encoded over the [data] bytes.
 ///
@@ -107,16 +111,26 @@ class BinaryParser {
   /// Creates a parser of the [data], setting the [cursor] at the given byte, 0 by default.
   BinaryParser(this.data, {this.cursor = 0});
 
+  /// Finds the first pair (0x00, 0x00) in the [data], starting from [from]. Returns the index of
+  /// the first byte in the pair or -1 if the pair is not found.
+  static int findDoubleNull(Uint8List data, {int from = 0}) {
+    do {
+      from = data.indexOf(0, from) + 1;
+    } while (from < data.lengthInBytes && data[from] != 0);
+
+    return from >= data.lengthInBytes ? -1 : from - 1;
+  }
+
   /// Returns the next byte in the [data] buffer, advances the [cursor].
   int getByte() {
     return data[cursor++];
   }
 
-  /// Returns a view of bytes from the current cursor position of length [amount], places the
-  /// [cursor] [amount] bytes further.
-  Uint8List getBytes(int amount) {
-    Uint8List result = getViewRegion(data, start: cursor, length: amount);
-    cursor += amount;
+  /// Returns a view of bytes from the current cursor position of length [size], places the
+  /// [cursor] [size] bytes further.
+  Uint8List getBytes({int size}) {
+    Uint8List result = getViewRegion(data, start: cursor, length: size);
+    cursor += size;
     return result;
   }
 
@@ -128,73 +142,84 @@ class BinaryParser {
     return result;
   }
 
-  /// Returns a string from the current cursor position with the given [length], places the [cursor]
-  /// after the last byte of the string.
+  /// Returns a string from the current cursor position with the given [size].
   ///
-  /// If no [encoding] is specified, the string is treated as ASCII, decoding with
-  /// [String.fromCharCodes]. Otherwise, the respective encoding, according to the ID3v2 spec, is
-  /// used for decoding the bytes.
-  String getString(int length, {int encoding}) {
-    String result;
-    if (encoding == null) {
-      result = String.fromCharCodes(data.getRange(cursor, cursor + length));
-    } else {
-      result = decodeByEncodingByte(
-        getViewRegion(data, start: cursor, length: length),
-        encoding,
-      );
-    }
-    cursor += length;
+  /// Places the [cursor] after the last byte of the string.
+  /// An [encoding] can be additionally specified to determine how to decode binary data to text.
+  /// Encoding is passed as the number according to the ID3v2.4 spec
+  String getString({int size, int encoding = iso_8859_1}) {
+    String result = decodeByEncodingByte(
+      getViewRegion(data, start: cursor, length: size),
+      encoding,
+    );
+    cursor += size;
     return result;
   }
 
-  /// Returns the string from the current cursor position to the next null byte, places the
-  /// [cursor] after the null byte.
+  /// Returns the string from the current cursor position to the next null byte.
   ///
-  /// If no [encoding] is specified, the string is treated as ASCII, decoding with
-  /// [String.fromCharCodes]. Otherwise, the respective encoding, according to the ID3v2 spec, is
-  /// used for decoding the bytes.
-  String getStringUntilNull({int encoding}) {
-    int nullSeparator = data.indexOf(0, cursor);
-
-    String result;
-    if (encoding == null) {
-      result = String.fromCharCodes(data.getRange(cursor, nullSeparator));
+  /// Places the [cursor] after the null character.
+  /// An [encoding] can be additionally specified to determine how to decode binary data to text.
+  /// Encoding is passed as the number according to the ID3v2.4 spec
+  String getStringUntilNull({int encoding = iso_8859_1}) {
+    int nullSeparator;
+    if (encoding == utf16 || encoding == utf16be) {
+      nullSeparator = findDoubleNull(data, from: cursor);
     } else {
-      result = decodeByEncodingByte(
-        getViewRegion(data, start: cursor, end: nullSeparator),
-        encoding,
-      );
+      nullSeparator = data.indexOf(0, cursor);
     }
+
+    String result = decodeByEncodingByte(
+      getViewRegion(data, start: cursor, end: nullSeparator),
+      encoding,
+    );
     cursor = nullSeparator + 1;
+    if (encoding == utf16 || encoding == utf16be) {
+      cursor++;  // The null character takes 2 bytes
+    }
     return result;
   }
 
   /// Returns the string from the current cursor position until the end of the [data] buffer,
   /// places the [cursor] at [data.lengthInBytes].
   ///
-  /// If no [encoding] is specified, the string is treated as ASCII, decoding with
-  /// [String.fromCharCodes]. Otherwise, the respective encoding, according to the ID3v2 spec, is
-  /// used for decoding the bytes.
-  String getStringUntilEnd({int encoding}) {
-    String result;
-    if (encoding == null) {
-      result = String.fromCharCodes(data.getRange(cursor, data.lengthInBytes));
-    } else {
-      result = decodeByEncodingByte(
-        getViewRegion(data, start: cursor),
-        encoding,
-      );
-    }
+  /// An [encoding] can be additionally specified to determine how to decode binary data to text.
+  /// Encoding is passed as the number according to the ID3v2.4 spec
+  String getStringUntilEnd({int encoding = iso_8859_1}) {
+    String result = decodeByEncodingByte(
+      getViewRegion(data, start: cursor),
+      encoding,
+    );
     cursor = data.lengthInBytes;
     return result;
   }
 
-  /// Returns an integer from the current cursor position spanning [amount] bytes, places the
+  List<String> getStringsUntilEnd({int encoding}) {
+    var result = List<String>();
+    int nullSeparator;
+
+    while (hasMoreData()) {
+      if (encoding == utf16 || encoding == utf16be) {
+        nullSeparator = findDoubleNull(data, from: cursor);
+      } else {
+        nullSeparator = data.indexOf(0, cursor);
+      }
+      result.add(
+        decodeByEncodingByte(getViewRegion(data, start: cursor, end: nullSeparator), encoding)
+      );
+      cursor = nullSeparator + 1;
+      if (encoding == utf16 || encoding == utf16be) {
+        cursor++;
+      }
+    }
+    return result;
+  }
+
+  /// Returns an integer from the current cursor position spanning [size] bytes, places the
   /// [cursor] after the last byte of the integer.
-  int getInt(int amount, {bool synchSafe = false}) {
-    int result = readInt(data.getRange(cursor, cursor + amount), synchSafe: synchSafe);
-    cursor += amount;
+  int getInt({int size, bool synchSafe = false}) {
+    int result = readInt(data.getRange(cursor, cursor + size), synchSafe: synchSafe);
+    cursor += size;
     return result;
   }
 
