@@ -114,11 +114,14 @@ class BinaryParser {
   /// Finds the first pair (0x00, 0x00) in the [data], starting from [from]. Returns the index of
   /// the first byte in the pair or -1 if the pair is not found.
   static int findDoubleNull(Uint8List data, {int from = 0}) {
-    do {
-      from = data.indexOf(0, from) + 1;
-    } while (from < data.lengthInBytes && data[from] != 0);
-
-    return from >= data.lengthInBytes ? -1 : from - 1;
+    int result = from;
+    while (result < data.lengthInBytes && (data[result] != 0x0 || data[result + 1] != 0x0)) {
+      result += 2;
+    }
+    if (result >= data.lengthInBytes) {
+      return -1;
+    }
+    return result;
   }
 
   /// Returns the next byte in the [data] buffer, advances the [cursor].
