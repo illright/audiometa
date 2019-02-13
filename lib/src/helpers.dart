@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:utf/utf.dart';
 
@@ -158,10 +159,18 @@ class BinaryParser {
   ///
   /// Places the [cursor] after the last byte of the string.
   /// An [encoding] can be additionally specified to determine how to decode binary data to text.
-  /// Encoding is passed as the number according to the ID3v2.4 spec
-  String getString({int size, int encoding = iso_8859_1}) {
+  /// Encoding is passed as the number according to the ID3v2.4 spec.
+  /// If needed, null bytes can be stripped from the right with the [stripNull] flag.
+  String getString({int size, int encoding = iso_8859_1, bool stripNull = false}) {
+    int end;
+    if (stripNull) {
+      end = min(data.indexOf(0, cursor), cursor + size);
+    } else {
+      end = cursor + size;
+    }
+
     String result = decodeByEncodingByte(
-      getViewRegion(data, start: cursor, length: size),
+      getViewRegion(data, start: cursor, end: end),
       encoding,
     );
     cursor += size;

@@ -7,10 +7,12 @@ import 'id3v22_parser.dart';
 import 'id3v22_frames.dart' as v22;
 import 'id3v23_parser.dart';
 import 'id3v23_frames.dart' as v23;
+import 'id3v1_parser.dart';
+import 'id3v1_frames.dart' as v1;
 
 
 enum ID3 {
-  v1, v2_2, v2_3, v2_4
+  v1, v1_1, v2_2, v2_3, v2_4
 }
 
 
@@ -136,34 +138,40 @@ abstract class ID3Frame {
 }
 
 ID3Tag extractTag(Uint8List data, ID3 tagVersion) {
-  if (tagVersion == ID3.v2_2) {
-    try {
-      return ID3v22Parser.parseForward(data);
-    } on BadTagException {
-      return null;
+  try {
+    switch (tagVersion) {
+      case ID3.v1:
+        return ID3v1Parser.parseForward(data, start: data.lengthInBytes - 128);
+      case ID3.v1_1:
+        return ID3v1Parser.parseForward(data, start: data.lengthInBytes - 128, v1_1: true);
+      case ID3.v2_2:
+        return ID3v22Parser.parseForward(data);
+      case ID3.v2_3:
+        return ID3v23Parser.parseForward(data);
+      default:
+        return null;
     }
+  } on BadTagException {
+    return null;
   }
-  if (tagVersion == ID3.v2_3) {
-    try {
-      return ID3v23Parser.parseForward(data);
-    } on BadTagException {
-      return null;
-    }
-  }
-  return null;
 }
 
 void main() {
   var track = File('id3v23-test.mp3');
-  extractTag(track.readAsBytesSync(), ID3.v2_3).frames.forEach((k, v) {
+  extractTag(track.readAsBytesSync(), ID3.v1_1).frames.forEach((k, v) {
     for (var frame in v) {
       print('Frame ${frame.label}');
-      if (frame is v23.PlainTextFrame) {
-        print('  Value: ${(frame as v23.PlainTextFrame).text}');
-        if (frame is v23.LangDescTextFrame) {
+      if (frame is v1.TextFrame) {
+        print('  Value: ${frame.text}');
+        /*if (frame is v23.LangDescTextFrame) {
           print('  Language: ${frame.language}');
           print('  Description: ${frame.description}');
           print('  Encoding: ${frame.encoding}');
+        }*/
+      } else if (frame is v1.ByteFrame) {
+        print('  Value: ${frame.value}');
+        if (frame.label == 'Genre') {
+          print('  Actual genre: ${v1.genreNames[frame.value]}');
         }
       }
     }
