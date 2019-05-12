@@ -63,7 +63,7 @@ Uint8List getViewRegion(Uint8List view, {int start = 0, int end, int length}) {
 
 /// Removes unsynchronization changes from [data].
 ///
-/// According to the spec of the unsynchronization scheme, it's required and sufficient to
+/// According to the spec of the unsynchronization scheme, it's necessary and sufficient to
 /// remove every 0x00 that immediately follows 0xFF.
 Uint8List resync(Uint8List data) {
   var result = Uint8List(data.lengthInBytes);
@@ -270,5 +270,10 @@ class BinaryParser {
   /// Advances the [cursor] [amount] positions.
   void advance(int amount) {
     cursor += amount;
+  }
+
+  /// Updates the parser's data buffer, keeping the cursor position.
+  void update(Uint8List newData) {
+    data = newData;
   }
 }

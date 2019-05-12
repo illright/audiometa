@@ -110,6 +110,7 @@ class ID3v22Parser {
     if (unsync) {
       // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
       data = resync(data);
+      parser.update(data);
     }
     while (!parser.exceeds(tagSize)) {
       var frameLabel = parser.getString(size: 3);

@@ -121,7 +121,9 @@ class ID3v23Parser {
     int tagSize = parser.getInt(size: 4, synchSafe: true);
 
     if (unsync) {
+      // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
       data = resync(data);
+      parser.update(data);
     }
 
     // Extended header
