@@ -100,11 +100,13 @@ class ID3v23Parser {
       throw BadTagException('Missing "ID3" identifier');
 
     // Version identifier
+    var major = parser.getByte();
+    var revision = parser.getByte();
     if (!(
-         parser.getByte() == 0x03
-      && parser.getByte() == 0x00
+         major == 0x03
+      && revision == 0x00
     ))
-      throw BadTagException('Expected v2.3.0 tag, v2.${data[start + 3]}.${data[start + 4]} found');
+      throw BadTagException('Expected v2.3.0 tag, v2.${major}.${revision} found');
 
     // Flag bits
     int flags = parser.getByte();
