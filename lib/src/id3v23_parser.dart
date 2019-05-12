@@ -128,12 +128,13 @@ class ID3v23Parser {
     V23ExtHeader extHeader;
     if (extHeaderPresent) {
       int extHeaderSize = parser.getInt(size: 4);
-      extHeader = V23ExtHeader.parse(parser.getBytes(size: extHeaderSize + 4));
+      extHeader = V23ExtHeader.parse(parser.getBytes(size: extHeaderSize));
     }
 
     // Frames
     var frames = Map<String, List<ID3Frame>>();
-    while (!parser.exceeds(parser.cursor + tagSize)) {
+    var frameBegin = parser.cursor;
+    while (!parser.exceeds(frameBegin + tagSize)) {
       var frameLabel = parser.getString(size: 4);
       if (frameLabel == '\x00\x00\x00\x00') {
         break;  // Hit padding bytes

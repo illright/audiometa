@@ -31,19 +31,19 @@ class V23ExtHeader extends ExtHeader {
   V23ExtHeader(int size, int flags, this.paddingSize, this.frameCRC) : super(size, flags);
 
   factory V23ExtHeader.parse(Uint8List data) {
-    int size = readInt(data.getRange(0, 4));
-    int flags = readInt(data.getRange(4, 6));
+    var parser = BinaryParser(data);
+    int flags = parser.getInt(size: 2);
 
     if (flags & 0x7FFF != 0) {  // 0x7FFF == 0b01111111_11111111
       throw BadTagDataException('Unknown flags set in the extended header.');
     }
-    int paddingSize = readInt(data.getRange(6, 10));
+    int paddingSize = parser.getInt(size: 4);
     int frameCRC = null;
     if (flags & 0x8000 != 0) {    // 0x8000 == 0b10000000_00000000
-      frameCRC = readInt(data.getRange(10, 14));
+      frameCRC = parser.getInt(size: 4);
     }
 
-    return V23ExtHeader(size, flags, paddingSize, frameCRC);
+    return V23ExtHeader(data.lengthInBytes, flags, paddingSize, frameCRC);
   }
 }
 
