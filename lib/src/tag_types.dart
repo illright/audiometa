@@ -69,7 +69,7 @@ abstract class FrameFlags {
 
   bool contain(int key);
 
-  void init(int flagBit);
+  FrameFlags.init(int flagInt);
 
   operator []=(int key, int value);
 }
@@ -116,7 +116,8 @@ class V23FrameFlags implements FrameFlags {
     return data.containsKey(key);
   }
 
-  void init(int flagInt) {
+  V23FrameFlags.init(int flagInt) {
+    data = Map<int, int>();
     for (int flagBit in [0x8000, 0x4000, 0x2000]) {
       if (flagInt & flagBit != 0) {
         data[flagBit] = null;

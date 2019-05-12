@@ -141,8 +141,7 @@ class ID3v23Parser {
       }
       int frameSize = parser.getInt(size: 4);
       int frameFlags = parser.getInt(size: 2);
-      var flagStorage = V23FrameFlags();
-      flagStorage.init(frameFlags);
+      var flagStorage = V23FrameFlags.init(frameFlags);
 
       // Frame flag data
       if (frameFlags & 0x80 != 0) {  // 0x80 == 0b10000000
