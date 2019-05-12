@@ -106,7 +106,7 @@ class ID3v23Parser {
          major == 0x03
       && revision == 0x00
     ))
-      throw BadTagException('Expected v2.3.0 tag, v2.${major}.${revision} found');
+      throw BadTagException('Expected v2.3.0 tag, v2.$major.$revision found');
 
     // Flag bits
     int flags = parser.getByte();
