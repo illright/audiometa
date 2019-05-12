@@ -105,14 +105,17 @@ class ID3v22Parser {
     // Tag size
     int tagSize = parser.getInt(size: 4, synchSafe: true);
 
-    // Frames
-    var frames = Map<String, List<ID3Frame>>();
+    int tagEnd = parser.cursor + tagSize;
+
     if (unsync) {
       // It's safe to remove unsynchronization from the whole tag as the header has no 0xFF.
       data = resync(data);
       parser.update(data);
     }
-    while (!parser.exceeds(tagSize)) {
+
+    // Frames
+    var frames = Map<String, List<ID3Frame>>();
+    while (!parser.exceeds(tagEnd)) {
       var frameLabel = parser.getString(size: 3);
       if (frameLabel == '\x00\x00\x00') {
         break;  // Hit padding bytes
