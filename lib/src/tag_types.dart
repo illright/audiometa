@@ -69,6 +69,9 @@ abstract class FrameFlags {
 
   bool contain(int key);
 
+  /// Initializes the flag storage according the the flag integer.
+  ///
+  /// Marks presence of flags without data, leaving the data placement to the caller.
   FrameFlags.init(int flagInt);
 
   operator []=(int key, int value);
@@ -76,6 +79,13 @@ abstract class FrameFlags {
 
 
 class V23FrameFlags implements FrameFlags {
+  static const tagAlterPreserveBit = 0x8000;    // 0x8000 == 0b1000_0000_0000_0000
+  static const fileAlterPreserveBit = 0x4000;   // 0x4000 == 0b0100_0000_0000_0000
+  static const readOnlyBit = 0x2000;            // 0x2000 == 0b0010_0000_0000_0000
+  static const decompressedSizeBit = 0x80;      //   0x80 ==           0b1000_0000
+  static const encryptionMethodBit = 0x40;      //   0x40 ==           0b0100_0000
+  static const groupIDBit = 0x20;               //   0x20 ==           0b0010_0000
+
   Map<int, int> data;
 
   V23FrameFlags({
@@ -88,27 +98,27 @@ class V23FrameFlags implements FrameFlags {
   }) {
     data = Map<int, int>();
     if (tagAlterPreserve) {
-      data[0x8000] = null;  // 0x8000 == 0b1000_0000_0000_0000
+      data[tagAlterPreserveBit] = null;
     }
 
     if (fileAlterPreserve) {
-      data[0x4000] = null;  // 0x4000 == 0b0100_0000_0000_0000
+      data[fileAlterPreserveBit] = null;
     }
 
     if (readOnly) {
-      data[0x2000] = null;  // 0x2000 == 0b0010_0000_0000_0000
+      data[readOnlyBit] = null;
     }
 
     if (decompressedSize != null) {
-      data[0x80] = decompressedSize;  // 0x80 == 0b1000_0000
+      data[decompressedSizeBit] = decompressedSize;
     }
 
     if (encryptionMethod != null) {
-      data[0x40] = encryptionMethod;  // 0x40 == 0b0100_0000
+      data[encryptionMethodBit] = encryptionMethod;
     }
 
     if (groupID != null) {
-      data[0x20] = groupID;  // 0x20 == 0b0010_0000
+      data[groupIDBit] = groupID;
     }
   }
 
@@ -116,9 +126,12 @@ class V23FrameFlags implements FrameFlags {
     return data.containsKey(key);
   }
 
+  /// Initializes the flag storage according the the flag integer.
+  ///
+  /// Marks presence of flags without data, leaving the data placement to the caller.
   V23FrameFlags.init(int flagInt) {
     data = Map<int, int>();
-    for (int flagBit in [0x8000, 0x4000, 0x2000]) {
+    for (int flagBit in [tagAlterPreserveBit, fileAlterPreserveBit, readOnlyBit]) {
       if (flagInt & flagBit != 0) {
         data[flagBit] = null;
       }
