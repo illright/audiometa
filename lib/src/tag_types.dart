@@ -47,6 +47,45 @@ class V23ExtHeader extends ExtHeader {
   }
 }
 
+
+class V24ExtHeader extends ExtHeader {
+  bool isUpdate;
+  int frameCRC;
+  int restrictions;
+
+  V24ExtHeader(int size, int flags, this.isUpdate, this.frameCRC, this.restrictions)
+      : super(size, flags);
+
+  factory V24ExtHeader.parse(Uint8List data) {
+    var parser = BinaryParser(data);
+    parser.advance(1);  // skip the number of flag bytes, always 1
+    int flags = parser.getByte();
+
+    if (flags & 0x8FFF != 0) {  // 0x8FFF == 0b10001111_11111111
+      throw BadTagDataException('Unknown flags set in the extended header.');
+    }
+
+    bool isUpdate = flags & 0x4000 != 0;  // 0x4000 == 0b01000000_00000000
+    if (isUpdate)
+      parser.advance(1);
+
+    int frameCRC = null;
+    if (flags & 0x2000 != 0) {  // 0x2000 == 0b00100000_00000000
+      parser.advance(1);
+      frameCRC = parser.getInt(size: 5, synchSafe: true);
+    }
+
+    int restrictions = null;
+    if (flags & 0x1000 != 0) {  // 0x1000 == 0b00010000_00000000
+      parser.advance(1);
+      restrictions = parser.getByte();
+    }
+
+    return V24ExtHeader(data.lengthInBytes, flags, isUpdate, frameCRC, restrictions);
+  }
+}
+
+
 class ID3Tag {
   ID3 version;
   Map<String, List<ID3Frame>> frames;
@@ -132,6 +171,85 @@ class V23FrameFlags implements FrameFlags {
   V23FrameFlags.init(int flagInt) {
     data = Map<int, int>();
     for (int flagBit in [tagAlterPreserveBit, fileAlterPreserveBit, readOnlyBit]) {
+      if (flagInt & flagBit != 0) {
+        data[flagBit] = null;
+      }
+    }
+  }
+
+  operator []=(int key, int value) {
+    data[key] = value;
+  }
+}
+
+
+class V24FrameFlags implements FrameFlags {
+  static const tagAlterPreserveBit = 0x4000;   // 0x4000 == 0b0100_0000_0000_0000
+  static const fileAlterPreserveBit = 0x2000;  // 0x2000 == 0b0010_0000_0000_0000
+  static const readOnlyBit = 0x1000;           // 0x1000 == 0b0001_0000_0000_0000
+  static const groupIDBit = 0x40;              //   0x40 ==           0b0100_0000
+  static const compressionBit = 0x8;           //    0x8 ==           0b0000_1000
+  static const encryptionMethodBit = 0x4;      //    0x4 ==           0b0000_0100
+  static const unsyncBit = 0x2;                //    0x2 ==           0b0000_0010
+  static const dataLengthIndcatorBit = 0x1;    //    0x1 ==           0b0000_0001
+
+  Map<int, int> data;
+
+  V24FrameFlags({
+    bool tagAlterPreserve = false,
+    bool fileAlterPreserve = false,
+    bool readOnly = false,
+    int groupID,
+    bool compressed = false,
+    int encryptionMethod,
+    bool unsync = false,
+    int dataLengthIndcator,
+  }) {
+    data = Map<int, int>();
+    if (tagAlterPreserve) {
+      data[tagAlterPreserveBit] = null;
+    }
+
+    if (fileAlterPreserve) {
+      data[fileAlterPreserveBit] = null;
+    }
+
+    if (readOnly) {
+      data[readOnlyBit] = null;
+    }
+
+    if (groupID != null) {
+      data[groupIDBit] = groupID;
+    }
+
+    if (compressed) {
+      data[compressionBit] = null;
+    }
+
+    if (encryptionMethod != null) {
+      data[encryptionMethodBit] = encryptionMethod;
+    }
+
+    if (unsync) {
+      data[unsyncBit] = null;
+    }
+
+    if (dataLengthIndcator != null) {
+      data[dataLengthIndcatorBit] = dataLengthIndcator;
+    }
+  }
+
+  bool contain(int key) {
+    return data.containsKey(key);
+  }
+
+  /// Initializes the flag storage according the the flag integer.
+  ///
+  /// Marks presence of flags without data, leaving the data placement to the caller.
+  V24FrameFlags.init(int flagInt) {
+    data = Map<int, int>();
+    for (int flagBit in [tagAlterPreserveBit, fileAlterPreserveBit, readOnlyBit,
+                         compressionBit, unsyncBit]) {
       if (flagInt & flagBit != 0) {
         data[flagBit] = null;
       }

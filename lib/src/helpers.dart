@@ -9,6 +9,7 @@ import 'exceptions.dart';
 const iso_8859_1 = 0;
 const utf16 = 1;
 const utf16be = 2;
+const utf8 = 3;
 
 
 /// Returns an integer that is encoded over the [data] bytes.

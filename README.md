@@ -8,7 +8,7 @@ Read and write metadata of audio files in Dart.
 	- [x] ID3v2.3
 	- [x] ID3v1
 	- [x] ID3v1.1
-	- [ ] ID3v2.4
+	- [x] ID3v2.4
 - Write ID3 tags
 	- [ ] ID3v2.2
 	- [ ] ID3v2.3
