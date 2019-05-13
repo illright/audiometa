@@ -138,6 +138,25 @@ abstract class ID3Frame {
   ID3Frame(this.label, {this.flags});
 }
 
+
+/// Frame that mainly contains text.
+///
+/// This is an interface so it does not refer to any actual frames.
+abstract class PlainTextFrame {
+  String text;
+  int encoding;
+}
+
+
+/// Frame that mainly contains binary data.
+///
+/// The parsing of that data is currently not in the roadmap for this library, but may come later.
+/// This is an interface so it does not refer to any actual frames.
+class BinaryFrame {
+  Uint8List data;
+}
+
+
 ID3Tag extractTag(Uint8List data, ID3 tagVersion) {
   try {
     switch (tagVersion) {

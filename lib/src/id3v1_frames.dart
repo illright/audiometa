@@ -1,4 +1,5 @@
 import 'tag_types.dart';
+import 'helpers.dart';
 
 
 /// Mapping of genre codes to their names.
@@ -141,8 +142,9 @@ const genreNames = <int, String>{
 /// - Album
 /// - Year
 /// - Comment
-class TextFrame extends ID3Frame {
+class TextFrame extends ID3Frame implements PlainTextFrame {
   String text;
+  int encoding = iso_8859_1;
 
   TextFrame({String label, this.text}) : super(label);
 }

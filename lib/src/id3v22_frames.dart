@@ -25,15 +25,6 @@ class UFI extends ID3Frame {
 }
 
 
-/// Frame that mainly contains text.
-///
-/// This is an interface so it does not refer to any actual frames.
-abstract class PlainTextFrame {
-  String text;
-  int encoding;
-}
-
-
 /// T00-TZZ, excluding TXX: Text information frames.
 ///
 /// Refers to the following frames:
@@ -145,15 +136,6 @@ class IPL extends ID3Frame {
   }
 
   IPL(this.involvement, {this.encoding = iso_8859_1}) : super('IPL');
-}
-
-
-/// Frame that mainly contains binary data.
-///
-/// The parsing of that data is currently not in the roadmap for this library, but may come later.
-/// This is an interface so it does not refer to any actual frames.
-class BinaryFrame {
-  Uint8List data;
 }
 
 

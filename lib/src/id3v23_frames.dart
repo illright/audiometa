@@ -4,8 +4,6 @@ import 'tag_types.dart';
 import 'exceptions.dart';
 import 'helpers.dart';
 
-const iso_8859_1 = 0;
-
 
 /// UFID: Unique file identifier.
 class UFID extends ID3Frame {
@@ -27,15 +25,6 @@ class UFID extends ID3Frame {
     this.identifier,
     V23FrameFlags flags
   }) : super('UFID', flags: flags);
-}
-
-
-/// Frame that mainly contains text.
-///
-/// This is an interface so it does not refer to any actual frames.
-abstract class PlainTextFrame {
-  String text;
-  int encoding;
 }
 
 
@@ -171,15 +160,6 @@ class IPLS extends ID3Frame {
     this.encoding = iso_8859_1,
     V23FrameFlags flags
   }) : super('IPLS', flags: flags);
-}
-
-
-/// Frame that mainly contains binary data.
-///
-/// The parsing of that data is currently not in the roadmap for this library, but may come later.
-/// This is an interface so it does not refer to any actual frames.
-class BinaryFrame {
-  Uint8List data;
 }
 
 
