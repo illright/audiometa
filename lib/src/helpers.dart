@@ -105,7 +105,7 @@ String decodeByEncodingByte(Uint8List data, int encodingByte) {
 
 
 /// Parses the [dateString] in the format YYYYMMDD and returns a [DateTime] object.
-DateTime parseDate(String dateString) {
+DateTime parseDateYmd(String dateString) {
   int year = int.parse(dateString.substring(0, 4));
   int month = int.parse(dateString.substring(4, 6));
   int day = int.parse(dateString.substring(6, 8));

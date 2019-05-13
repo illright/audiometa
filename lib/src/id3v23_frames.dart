@@ -615,7 +615,7 @@ class OWNE extends ID3Frame {
     var parser = BinaryParser(data);
     encoding = parser.getByte();
     price = parser.getStringUntilNull();
-    dateOfPurchase = parseDate(parser.getString(size: 8));
+    dateOfPurchase = parseDateYmd(parser.getString(size: 8));
     seller = parser.getStringUntilEnd(encoding: encoding);
   }
 
@@ -650,7 +650,7 @@ class COMR extends ID3Frame {
     var parser = BinaryParser(data);
     encoding = parser.getByte();
     price = parser.getStringUntilNull();
-    validUntil = parseDate(parser.getString(size: 8));
+    validUntil = parseDateYmd(parser.getString(size: 8));
     contactUrl = parser.getStringUntilNull();
     receivedAs = parser.getByte();
     seller = parser.getStringUntilNull(encoding: encoding);
