@@ -1,6 +1,8 @@
 # audiometa
 Read and write metadata of audio files in Dart.
 
+**This project is not maintained.**
+
 ## Roadmap
 
 - Read ID3 tags
